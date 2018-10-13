@@ -1,0 +1,34 @@
+Reading Test Scores
+-------------------
+pisaTrain and pisaTest are respectively the train and test dataframes
+
+- P1.4
+na.omit(DF) removes observations w/ any missing values in dataframe DF
+> pisaTrain = na.omit(pisaTrain)
+
+- P3.1
+releveling a factor variable by passing in a particular level puts that level at the top
+and bumps all other lvls down one; lvls are by default ordered alphabetically
+> pisaTrain$raceeth = relevel(pisaTrain$raceeth, 'White')
+
+A lower R^2 value doesn't necessarily indicate a poor model. Rather, it  can indicate
+the relative difficulty of one prediction problem relative to another.
+
+Detecting Flu Epidemics via Search Engine Query Data
+----------------------------------------------------
+FluTrain and FluTest are respectively the train and test datasets
+
+- P1.3
+When building a model using data w/ a numeric response var (call it Y) whose histogram skewed right, it's often useful
+to model log(Y) vs X instead of Y vs X so that a small number of extreme observations doesn't
+have undue influence on the model.
+
+- P4.1
+> library(zoo)
+> ILILag2 = stats::lag(zoo(FluTrain$ILI), -2, na.pad=TRUE)
+Note: ILILag2 is now a 'zoo series'
+> FluTrain$ILILag2 = coredata(ILILag2)
+My guess is that the coredata function converts ILILag2 from a zoo series to a datatype
+suitable as a dataframe column
+
+ 

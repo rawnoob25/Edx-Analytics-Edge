@@ -1,0 +1,22 @@
+Lectures
+--------
+*Large enough sample (nrows) allows more data to be put in the testing set than if sample
+were smaller; this increases our confidence in the ability of our model to extend to unseen data
+
+*usually put 50-80% of data in training set
+
+*summary() called on a dataframe (DF) will provide a count of the missing values for each list in the DF
+
+*(naive) baseline model in logistic regression predicts the more common class in the training dataset for
+every observation in the test dataset.
+
+*When deciding which independent variables to include in a logistic regression model, make a correlation
+matrix with all the relevant (must be numeric) independent variables and the dependent variable, 
+and include in the model the independent variable with highest correlation with the dependent variable.
+When refining the model, consider adding in a pair of independent variables that have a low correlation with
+one another.
+
+
+*AIC (from summary() invoked on logistic regression model) indicates the strength of the model. Smaller AIC is better.
+
+

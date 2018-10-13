@@ -1,0 +1,104 @@
+---
+title: "AnalyticsEdge Wk3 Logistic Regr Notes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##This is from Analytics Edge Wk3 Recitation:2012 election prediction using model trained on 2004 and 2008 data
+
+Load the 'mice' package for chained multiple imputation.
+```{r}
+library(mice)
+```
+
+Perform initial inspection of data.
+```{r}
+polling = read.csv("PollingData.csv")
+str(polling)
+table(polling$Year)
+summary(polling)
+```
+
+Perform double imputation to fill in missing values in Rasmussen
+and SurveyUSA fields. To impute, we'll include a dataset
+with just the 4 numeric independent variables (Rasmussen, SurveyUSA, DiffCount and PropR). 
+```{r}
+simple = polling[c("Rasmussen", "SurveyUSA", "PropR", "DiffCount")]
+summary(simple)
+set.seed(144)
+imputed = complete(mice(simple)) #mice and complete are functions from 'mice' pkg.
+#After setting a seed, invoking complete() on the result of the invocation of 
+#mice() on a dataframe performs multiple chained imputation on that dataframe
+#to handle its missing values.
+summary(imputed)
+```
+
+Now the Rasmussen and SurveyUSA columns in the polling dataframe
+will be reassigned to their imputed vectors.
+```{r}
+polling$Rasmussen = imputed$Rasmussen
+polling$SurveyUSA = imputed$SurveyUSA
+summary(polling)
+```
+
+The missing values in Rasmussen and SurveyUSA are now gone.
+We'll make the training dataset hold observations from
+2004 and 2008, while the test dataset will contain observations
+from 2012. We'll assume that the results of the Rasmussen
+poll serve as a good baseline model and assess how this
+baseline performs on the training dataset.
+```{r}
+Train = subset(polling, Year == 2004 | Year == 2008)
+Test = subset(polling, Year == 2012)
+table(Train$Republican, sign(Train$Rasmussen))
+```
+
+The baseline model appears to be pretty good (it only makes 3 
+errors and expresses ambivalence on only 3 instances).
+
+We'll now see if we can make a model that'll beat this baseline model. To figure out which variables to use, we'll first inspect the correlation matrix (taking care to include
+only the numeric indepent variables and the dependent variable)
+
+```{r}
+cor(Train[c('Rasmussen','SurveyUSA','PropR','DiffCount','Republican')])
+```
+
+PropR has the highest correlation with the dependent variable  (Republican), so a judicious first attempt at a model would be one that only includes PropR.
+```{r}
+mod1=glm(Republican~PropR,data=Train,family='binomial')
+summary(mod1)
+table(Train$Republican, predict(mod1,type='response')>=0.5)
+```
+
+From the above, we see that the p-Value is good, the AIC is 19.772 and that the model makes 4 mistakes on the training data using a threshold of 0.5.
+
+We'll now see if we can do better using a two-variable model. To determine which variables to use, we'll look for a pair of independent variables with a relatively low correlation in the correlation matrix. DiffCount and SurveyUSA seems like a good choice.
+```{r}
+mod2 = glm(Republican~SurveyUSA+DiffCount, data=Train, family="binomial")
+pred2 = predict(mod2, type="response")
+table(Train$Republican, pred2 >= 0.5)
+summary(mod2)
+```
+
+Though this 2-independent variable model makes 3 mistakes (vs 4 using the 1-independent variable model), the p Values indicate that neither DiffCount or SurveyUSA is statistically significant with Republican in this model. On the other hand, the AIC has gone down a little to 18.439, which is favorable.
+
+We'll now see how the 2-independent variable model performs relative to the baseline (Rasmussen only) on the test dataset.
+
+```{r}
+# Smart baseline accuracy
+table(Test$Republican, sign(Test$Rasmussen))
+
+# Test set predictions
+TestPrediction = predict(mod2, newdata=Test, type="response")
+table(Test$Republican, TestPrediction >= 0.5)
+```
+
+The 2-independent variable model gets only 1 wrong, while the baseline misses 4 and fails to commit on 2.
+
+Let's find which State the 2-independent variable model got wrong.
+```{r}
+subset(Test, !Republican & TestPrediction>=0.5)
+```
+It's Florida. All numerical the independent variables indicated a close call for Florida, so this is not surprising.

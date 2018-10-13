@@ -1,0 +1,89 @@
+An Analytics Detective
+----------------------
+
+***mvt is a data frame
+
+Q:In which month did the fewest motor vehicle thefts occur?
+> mvt$Month%>%table%>%which.min
+
+Q:Which month has the largest number of motor vehicle thefts for which an arrest was made?
+> table(mvt$Arrest,mvt$Month)
+
+Q: Make a histogram of dates...but must specify breaks in this case
+> hist(mvt$Date, breaks=100)
+
+Q: Make boxplot of date vs arrest(T/F)
+> boxplot(mvt$Date ~ mvt$Arrest)
+
+
+-P2.2
+> DateConvert = as.Date(strptime(mvt$Date, "%m/%d/%y %H:%M"))
+# Note: here strptime is used and it might be because the original Date field had a time in addition to a date.
+- P2.3
+> mvt%>%group_by(Month)%>%summarise(count=n())%>%arrange(count)%>%slice(1)%>%select(Month)%>%as.character()
+Using tapply...
+> tapply(mvt$ID,mvt$Month,function(x)length(x), simplify = T)%>%which.min()
+Note: > tapply(mvt$ID,mvt$Month, function(x)length(x), simplify = T) #returns an array
+
+- P4.1
+> tapply(mvt$ID,mvt$LocationDescription,cnt)%>%sort(decreasing = T)%>%head(6)
+Note sort can be invoked on the array returned by tapply and head can be invoked on the ensuing result
+
+The names of the location descriptions can be accessed by invoking the names() function on the result above.
+This is used in P4.2
+
+- P4.2
+> top=tapply(mvt$ID,mvt$LocationDescription,cnt)%>%sort(decreasing = T)%>%head(6)%>%names #this contains 6 items cuz there's an 'other'
+> top2=top[-3] #get rid of 'other'
+> subset(mvt, LocationDescription %in% TopLocations)%>%dim%>%head(1)
+Or alternatively, > Top5= mvt[mvt$LocationDescription %in% TopLocations,] 
+> subset(mvt, LocationDescription %in% top2)%>%dim%>%head(1)
+
+- P4.3
+can call factor() on a column of a dataframe that's been subsetting to throw out
+levels that were present before the subsetting
+> top5$LocationDescription = factor(top5$LocationDescription)
+> tapply(top5$Arrest,top5$LocationDescription,function(x)sum(x)/length(x))%>%sort(decreasing = T)%>%head(1)
+
+- P4.4
+> gas=subset(top5, LocationDescription=='GAS STATION') 
+> table(gas$Weekday)%>%sort(decreasing = T)%>%head(1)%>%names()
+
+- P4.5
+> driveway=subset(top5,grepl('driv',top5$LocationDescription,ignore.case=T))
+> table(driveway$Weekday)%>%sort()%>%head(1)%>%names()
+
+----------------------------------------------------------------------------
+Stock Dynamics
+--------------
+*using summary on a Date variable will give you a 5-number summary of Dates
+
+- P2.2
+Add vertical line at specific date to existing time series plot (notice how date string is converted to date)
+> abline(v=as.Date(c("2000-03-01")), lwd=2) #this is ymd format
+
+
+
+-----------------------------------------------------------------------------
+Demographics and Employment in United States
+--------------------------------------------
+CPS is the dataset
+
+- P2.3
+> tapply(CPS$MetroAreaCode, CPS$State, function(x)all(is.na(x)))%>%which
+
+- P2.5
+First problem
+> abs(tapply(CPS$MetroAreaCode, CPS$State, function(x)sum(is.na(x))/length(x)) - 0.30)%>%sort%>%head(1)
+
+Second Problem
+> allNonMet=tapply(CPS$MetroAreaCode, CPS$State, function(x) all(is.na(x)))%>%which%>%names
+> someMet=setdiff(CPS$State,allNonMet)
+
+
+- P3.2 
+Left outer join e.g. (below)
+> CPS = merge(CPS, MetroAreaMap, by.x="MetroAreaCode", by.y="Code", all.x=TRUE)
+all rows of the original dataframe CPS are retained
+
+
