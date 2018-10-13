@@ -6,7 +6,46 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-##This is from Analytics Edge Wk3 Recitation:2012 election prediction using model trained on 2004 and 2008 data
+
+### Useful notes to keep in mind from this week's lectures (and last week's assignment?)
+
+
+```{r}
+quality = read.csv("quality.csv")
+library(caTools)
+split = sample.split(quality$PoorCare, SplitRatio = 0.75)
+```
+In the above code chunk, sample.split() from the caTools package
+returns a logical vector with 75% TRUE values and 25% FALSE values. The Proportion of TRUE values for quality\$PoorCare at indices of the 'quality' dataframe for which 'split' is TRUE is the same as that at indices in the 'quality' dataframe for which 'split' is false. So 'split' can be used to construct training and test datasets that have the same distributions of values for quality\$PoorCare, which is our response variable of interest.   
+
+```{r}
+qualityTrain = subset(quality, split == TRUE)
+qualityTest = subset(quality, split == FALSE)
+QualityLog = glm(PoorCare ~ OfficeVisits + Narcotics, data=qualityTrain, family=binomial)
+predictTrain = predict(QualityLog, type="response")
+```
+
+Below we'll show how to use the ROCR package to both make an ROC (Receiver Operating Characteristics) curve with the threshold values highlighted on the graph and to calculate the AUC (Area Under Curve).
+```{r}
+library(ROCR)
+ROCRpred = prediction(predictTrain, qualityTrain$PoorCare)
+ROCRperf = performance(ROCRpred, "tpr", "fpr") #tpr is true positive rate and fpr is false positive rate
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+
+Below we'll illustrate how to compute lagging data. The call to stats::lag will involve passing in a Zoo Series (using the zoo library). Data is from a dataset with Influenza data. Before adding the lagged data as a column in the data frame, it has to first be converted from its Zoo series structure back to a more suitable form to be in the dataframe. Invoking the 'coredata' function from the 'zoo' package performs this conversion.
+```{r}
+FluTrain = read.csv('FluTrain.csv')
+library(zoo)
+ILILag2 = stats::lag(zoo(FluTrain$ILI), -2, na.pad=TRUE)
+FluTrain$ILILag2 = coredata(ILILag2)
+```
+
+You'll see above that the first two elements of FluTrain\$ILILag2 are NAs. This is because there are no data points that lag the first two observations by two observations.
+
+
+### This is from Analytics Edge Wk3 Recitation:2012 election prediction using model trained on 2004 and 2008 data
 
 Load the 'mice' package for chained multiple imputation.
 ```{r}
@@ -102,3 +141,5 @@ Let's find which State the 2-independent variable model got wrong.
 subset(Test, !Republican & TestPrediction>=0.5)
 ```
 It's Florida. All numerical the independent variables indicated a close call for Florida, so this is not surprising.
+
+
