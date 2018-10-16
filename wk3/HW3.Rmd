@@ -1,0 +1,128 @@
+---
+title: "Analytics Edge Hwk3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Selected problems from Homework 3
+
+### Loans dataset 
+
+Loading dataset and installing packages used in balance of document
+```{r}
+loans = read.csv('loans.csv')
+head(loans)
+library(magrittr)
+library(dplyr)
+library(caTools)
+library(zoo)
+library(ROCR)
+library(mice)
+```
+
+P1.4 (imputation)
+```{r}
+set.seed(144)
+vars.for.imputation = setdiff(names(loans), "not.fully.paid")
+imputed = complete(mice(loans[vars.for.imputation]))
+loans[vars.for.imputation] = imputed
+```
+
+P1.5 (logistic regr)
+```{r}
+set.seed(144)
+split = sample.split(loans$not.fully.paid,SplitRatio = 0.7)
+train  = subset(loans, split)
+test = subset(loans, !split)
+loansMod1 = glm(not.fully.paid ~ ., data=loans, family='binomial')
+summary(loansMod1)
+```
+
+P2.3. *Note: my answer for the first question does not  precisely match the official answer*
+```{r}
+predict.risk = predict(loansMod1, newdata = test, type = 'response')
+table(test$not.fully.paid, predict.risk>=0.5)
+1-mean(train$not.fully.paid)
+```
+
+P2.4
+```{r}
+ROCRpred = prediction(predict.risk, test$not.fully.paid)
+as.numeric(performance(ROCRpred,'auc')@y.values)
+```
+
+P3.1
+```{r}
+mod_int.rate = glm(not.fully.paid~int.rate, data = train, family = 'binomial')
+summary(mod_int.rate)
+```
+
+P3.2
+```{r}
+predictions_bivar = predict(mod_int.rate, type = 'response', newdata = test)
+max(predictions_bivar)
+table(test$not.fully.paid, predictions_bivar>=0.5)
+```
+
+P3.3
+```{r}
+ROCR_bivar_pred = prediction(predictions_bivar, test$not.fully.paid)
+as.numeric(performance(ROCR_bivar_pred, 'auc')@y.values)
+```
+
+P5.1
+```{r}
+test$profit = exp(test$int.rate*3) - 1
+test$profit[test$not.fully.paid == 1] = -1
+max(test$profit*10)
+```
+
+P6.1
+```{r}
+test$predicted.risk = predict.risk
+hiInterest=subset(test, int.rate>=0.15)
+mean(hiInterest$profit)
+mean(hiInterest$not.fully.paid)
+```
+
+P6.2 *Note: My answers don't match the official answers to the problem*
+```{r}
+cutoff = sort(hiInterest$predicted.risk, decreasing = F)[100]
+selectedLoans = subset(hiInterest, predicted.risk<=cutoff)
+(selectedLoans$profit)%>%sum
+(selectedLoans$not.fully.paid)%>%sum
+```
+
+### Baseball Dataset
+
+P1.4
+```{r}
+baseball = read.csv('baseball.csv')
+madePlayoffs = subset(baseball, Playoffs==1)
+nrow(madePlayoffs)
+```
+
+P1.5
+```{r}
+tapply(madePlayoffs$Team,madePlayoffs$Year,length)
+```
+P2.1/2.2/2.3/2.4 (**my answer to P2.4 doesn't match the official one**)
+```{r}
+playOffTbl=table(madePlayoffs$Year)
+names(playOffTbl)
+playOffTbl[c("1990","2001")]
+baseball$NumCompetitors = playOffTbl[as.character(baseball$Year)]
+nrow(subset(baseball,NumCompetitors==8))
+table(baseball$NumCompetitors)
+```
+
+P3.1/3.2
+```{r}
+baseball$WorldSeries = as.numeric(baseball$RankPlayoffs == 1)
+table(baseball$WorldSeries)
+```
+
+

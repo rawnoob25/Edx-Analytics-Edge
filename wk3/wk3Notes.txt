@@ -1,5 +1,9 @@
 Lectures
 --------
+*An interpretation of AUC of in a 2-class classification problem (using model built w/ logistic regression) is the probability
+that the model can successfully distinguish between a randomly selected observation that's in one class and a randomly
+selected observation that's in the other class. Note: randomly ordering observations would give an AUC of 0.5.
+
 *Large enough sample (nrows) allows more data to be put in the testing set than if sample
 were smaller; this increases our confidence in the ability of our model to extend to unseen data
 
@@ -20,3 +24,5 @@ one another.
 *AIC (from summary() invoked on logistic regression model) indicates the strength of the model. Smaller AIC is better.
 
 
+*Often, variables that were significant in bivariate (one predictor) models are no longer significant in multivariate (>=2 predictors)
+models
