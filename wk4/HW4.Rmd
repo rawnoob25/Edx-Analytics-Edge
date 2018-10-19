@@ -55,7 +55,7 @@ baselineAcc
 voting_logRegrPredictionObj = prediction(predVals, gerber$voting)
 performance(voting_logRegrPredictionObj, "auc")@y.values%>%as.numeric
 ```
-Notice in the above that the AUC is lower than that of the baseline model.
+Notice in the above that the AUC is lower than the accuracy of the baseline model.
 
 ### Problem 2 
 ```{r}
@@ -110,7 +110,9 @@ LogModel2%>%summary
 predict(LogModel2, doubles, type='response')
 ```
 
-Take-home msg: a regression tree can capture a non-linear relationship between predictors and the response because it implicitly considers interactions as you proceed down the tree (for e.g. interaction between sex and control on voting in this dataset).
+Take-home msg: a regression tree can capture a non-linear relationship between predictors and the response because it implicitly considers interactions as you proceed down the tree (for e.g. interaction between sex and control on voting in this dataset). 
+
+NOTE: Reminder, overfitting is more of a problem with small datasets.
 
 ## Letter Prediction Dataset
 
@@ -132,6 +134,8 @@ set.seed(1000)
 isB_classificationForest = randomForest(isB ~ .-letter, data=train)
 table(test$isB, predict(isB_classificationForest,newdata=test, type='class'))
 ```
+
+NOTE: when constructing isB_classificationForest (in code chunk above), the parameters nTtree and nodesize parameters, and R sets them to their default values (500 for ntree and either 5 or 1 for nodesize).
 
 ### Problem 2
 ```{r}
