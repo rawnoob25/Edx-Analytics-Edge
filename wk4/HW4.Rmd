@@ -1,0 +1,246 @@
+---
+title: "Analytics Edge HW4 and some notes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(magrittr)
+library(dplyr)
+library(caTools) #for splitting into train/test sets
+library(ROCR) #for computing AUCs
+library(rpart) #contains rpart function used to build classification and regression trees
+library(rpart.plot) #contains prp function used to plot classification and regression trees
+library(randomForest) #for building random forest models
+library(caret) #for cross-validation
+library(e1071) #for cross-validation
+```
+
+## TODO: Look at all text preceded by 'NOTE:'
+
+## Gerber Voting Dataset (examines the influence of eligible voters' receiving any of four types of messages- or no message- on whether or not they voted)
+
+### Problem 1
+```{r}
+gerber = read.csv('gerber.csv')
+mean(gerber$voting)
+head(gerber)
+treatments<-gerber[,4:length(gerber)]
+apply(treatments,1,sum)%>%unique() #verification that all rows sum to 1
+treatmentsANDVoting = cbind(treatments, voting=gerber$voting)
+hawthorne = subset(treatmentsANDVoting, as.logical(hawthorne))
+civicduty = subset(treatmentsANDVoting, as.logical(civicduty))
+neighbors = subset(treatmentsANDVoting, as.logical(neighbors))
+self = subset(treatmentsANDVoting, as.logical(self))
+control = subset(treatmentsANDVoting, as.logical(control))
+mean(hawthorne$voting)
+mean(civicduty$voting)
+mean(neighbors$voting)
+mean(self$voting)
+mean(control$voting)
+voting_logRegr = glm(voting~hawthorne+civicduty+neighbors+self,data=gerber,family="binomial")
+summary(voting_logRegr)
+predVals = predict(voting_logRegr, type="response")
+voting_logRegr_tbl=table(gerber$voting,predVals>=0.3)
+voting_logRegr_tbl
+(voting_logRegr_tbl[1,1]+voting_logRegr_tbl[2,2])/sum(voting_logRegr_tbl)
+voting_logRegr_tbl=table(gerber$voting,predVals>=0.5)
+voting_logRegr_tbl
+voting_logRegr_tbl[1]/sum(voting_logRegr_tbl)
+baselineAcc = 1-mean(gerber$voting)
+baselineAcc
+voting_logRegrPredictionObj = prediction(predVals, gerber$voting)
+performance(voting_logRegrPredictionObj, "auc")@y.values%>%as.numeric
+```
+Notice in the above that the AUC is lower than that of the baseline model.
+
+### Problem 2 
+```{r}
+CARTmodel = rpart(voting~hawthorne+civicduty+self+neighbors, data=gerber) #exclude "method='class'"
+#when building regression tree
+prp(CARTmodel)
+```
+All we see in the regression tree above is a single leaf node with the value 0.32; this implies that none of the 4 variables are significant enough to split on. This contradicts the output of the logistic regression in Problem 1, which indicated that all 4 variables are very significant.
+
+```{r}
+CARTmodel2 = rpart(voting~hawthorne+civicduty+self+neighbors, data=gerber, cp=0.0) #cp = 0.0 forces model to be built
+prp(CARTmodel2)
+```
+
+```{r}
+CARTmodel3 = rpart(voting ~ civicduty + hawthorne + self + neighbors + sex, data=gerber, cp=0.0)
+prp(CARTmodel3)
+CARTmodel3_another = rpart(voting~civicduty + hawthorne + self +neighbors + control +sex, data = gerber, cp = 0.0)
+prp(CARTmodel3_another)
+```
+
+Notice how we get a different looking tree when the variable 'control' is explicitly included in the model. However, notice that the probabilities of voting for males and females receiving the 'civicduty' notice are the same as they are in the tree without the 'control' variable explicitly included.
+
+### Problem 3
+```{r}
+controlRegrTree = rpart(voting~control, data=gerber, cp=0.0) 
+prp(controlRegrTree, digits=6)
+controlRegrTreeVals=predict(controlRegrTree)%>%unique()
+abs(controlRegrTreeVals[1]-controlRegrTreeVals[2])
+controlSexRegrTree = rpart(voting~control+sex, data=gerber, cp=0.0)
+prp(controlSexRegrTree, digits = 6)
+controlSexRegrTreeVals = predict(controlSexRegrTree)%>%unique()
+maleDiffs = controlSexRegrTreeVals[1] - controlSexRegrTreeVals[4]
+femaleDiffs = controlSexRegrTreeVals[2] - controlSexRegrTreeVals[3]
+abs(maleDiffs-femaleDiffs)
+```
+
+```{r}
+voting_sexControl_logregr = glm(voting~sex+control, data=gerber, family='binomial')
+summary(voting_sexControl_logregr)
+```
+
+```{r}
+doubles = data.frame(sex=c(0,0,1,1), control=c(0,1,0,1))
+logRegPreds = predict(voting_sexControl_logregr, doubles, type='response')
+logRegPreds
+```
+
+```{r}
+LogModel2 = glm(voting ~ sex + control + sex:control, data=gerber, family="binomial")
+LogModel2%>%summary
+predict(LogModel2, doubles, type='response')
+```
+
+Take-home msg: a regression tree can capture a non-linear relationship between predictors and the response because it implicitly considers interactions as you proceed down the tree (for e.g. interaction between sex and control on voting in this dataset).
+
+## Letter Prediction Dataset
+
+Reminder on random forests: The random forest method involves building a bunch of CART trees from the data. Each CART tree consists of subset of the variables and a bootstrapped sample (with replacement) of the observations. The trees then 'vote' on the outcome and the outcome that receives the majority of the votes is chosen. Random Forests in R involve the nodesize parameter, which is similar to the minBucket parameter in R. The smaller the nodesize, the more complicated the forest. The nTree parameter specifies the number of trees. The random forest method is not as sensitive to parameter values as is CART. When using random forests to do classification, the response variable must be a factor.
+
+### Problem 1
+```{r}
+letters = read.csv('letters_ABPR.csv')
+letters$isB = as.factor(letters$letter == "B")
+set.seed(1000)
+split = sample.split(letters$isB, SplitRatio=0.50)
+train = subset(letters, split)
+test = subset(letters, !split)
+summary(letters)
+isB_classificationTree = rpart(isB ~ .-letter, data = train, method="class")
+isB_testTable = table(test$isB, predict(isB_classificationTree, newdata=test, type='class'))
+isB_testTable
+set.seed(1000)
+isB_classificationForest = randomForest(isB ~ .-letter, data=train)
+table(test$isB, predict(isB_classificationForest,newdata=test, type='class'))
+```
+
+### Problem 2
+```{r}
+set.seed(2000)
+split=sample.split(letters$letter, SplitRatio =0.50)
+train = subset(letters, split)
+test = subset(letters, !split)
+table(train$letter)
+table(test$letter)
+CARTmodel = rpart(letter ~ .-isB, data=train, method='class')
+cartTbl=table(test$letter, predict(CARTmodel, newdata=test, type='class'))
+computeDiag=function(t){
+  tot=0
+  for (i in seq(nrow(t))){
+    tot = tot+t[i,i]
+  }
+  return(tot)
+}
+computeDiag(cartTbl)/sum(cartTbl)
+set.seed(1000)
+randomForestModel = randomForest(letter ~ .-isB, data=train)
+randomForestTbl=table(test$letter, predict(randomForestModel, newdata=test, type='class'))
+computeDiag(randomForestTbl)/sum(randomForestTbl)
+```
+
+## Census Dataset for salary classification
+
+### Problem 1
+```{r}
+census=read.csv("census.csv")
+set.seed(2000)
+split = sample.split(census$over50k, SplitRatio = 0.60)
+train = subset(census, split)
+test = subset(census, !split)
+logRegrMod = glm(over50k ~ ., data=train, family='binomial')
+summary(logRegrMod)
+table(test$over50k, predict(logRegrMod, newdata=test, type='response')>=0.50)
+```
+
+```{r}
+logRegrModPredictionObj = prediction(predict(logRegrMod, newdata=test, type='response'), test$over50k)
+performance(logRegrModPredictionObj, "auc")@y.values%>%as.numeric
+```
+
+### Problem 2
+```{r}
+censusClassTree = rpart(over50k ~ ., data=train, method="class")
+prp(censusClassTree)
+```
+
+```{r}
+#predict(censusClassTree, newdata=test)%>%str #Note: if you leave out
+#"type='response'", you'll get a vector of probabilities
+table(test$over50k, predict(censusClassTree, newdata=test,type='class'))
+```
+
+Note that when calling the predict() function, leaving out the "type='class'" will give a matrix of probability vectors- one probability vector for each level of the response variable (see the first five rows of the matrix outputted below).
+
+```{r}
+probabilities = predict(censusClassTree, newdata=test)
+probabilities[1:5,]
+over50k = probabilities[,2]
+censusCARTpredictionObj = prediction(over50k, test$over50k)
+censusClassTree_ROC = performance(censusCARTpredictionObj, "tpr", "fpr")
+plot(censusClassTree_ROC)
+as.numeric(performance(censusCARTpredictionObj,"auc")@y.values)
+```
+
+### Problem 3 (NOTE: my answer to problem 3.1 differs from the official answer. May be due to my operating system handling the sampling and random forest functions differently from the TA's operating system.)
+```{r}
+set.seed(1)
+trainSmall = train[sample(nrow(train), 2000), ]
+set.seed(1)
+censusrf = randomForest(over50k ~ . , data = trainSmall)
+predictTest = predict(censusrf, newdata=test)
+table(test$over50k, predictTest)
+```
+
+Below code chunk displays plot that indicates the number of times each variable was selected for in a split (aggregated over all trees in the model) in the building of the random forest model.
+
+```{r}
+vu = varUsed(censusrf, count=TRUE)
+vusorted = sort(vu, decreasing = FALSE, index.return = TRUE)
+dotchart(vusorted$x, names(censusrf$forest$xlevels[vusorted$ix]))
+```
+
+Below code chunk plots the mean reduction impurity for each variable. Any time a split is performed on a particular variable, the impurity of the observations remaining after the split is decreased. The mean reduction in impurity for a variable is the reduction in impurity for that variable averaged over all of the times that that variable is selected for in a split for all trees in the forest.
+
+```{r}
+varImpPlot(censusrf)
+```
+
+### Problem 4
+*Reminder on how to determine best value of cp for CART model:*
+1. create trainControl and expand.grid objects
+2. call train() function, passing in trainControl object as trControl parameter and expand.grid object as tuneGrid parameter
+
+```{r}
+set.seed(2)
+tr.control=trainControl(method="cv", number=10)
+cp.grid =expand.grid(.cp=seq(0.002,0.1,0.002))
+train(over50k~.,data=train,method="rpart",trControl=tr.control,tuneGrid=cp.grid)
+```
+
+```{r}
+CARTmodel_best_cp = rpart(over50k~., data=train, method="class", cp=0.002)
+table(test$over50k, predict(CARTmodel_best_cp, newdata=test, type="class"))
+```
+
+```{r}
+prp(CARTmodel_best_cp)
+```
