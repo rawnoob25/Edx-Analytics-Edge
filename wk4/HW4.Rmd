@@ -6,7 +6,9 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## Please note that the analysis of the 'states revisited' dataset is the most complete and is the easiest to study from of the datsets analyzed in this writeup.
 
+## TODO: Look at all text preceded by 'NOTE:'
 ```{r}
 library(magrittr)
 library(dplyr)
@@ -18,9 +20,6 @@ library(randomForest) #for building random forest models
 library(caret) #for cross-validation
 library(e1071) #for cross-validation
 ```
-
-## TODO: Look at all text preceded by 'NOTE:'
-
 ## Gerber Voting Dataset (examines the influence of eligible voters' receiving any of four types of messages- or no message- on whether or not they voted)
 
 ### Problem 1
@@ -248,3 +247,112 @@ table(test$over50k, predict(CARTmodel_best_cp, newdata=test, type="class"))
 ```{r}
 prp(CARTmodel_best_cp)
 ```
+
+## States revisited
+```{r}
+states= read.csv('statedataSimple.csv')
+head(states)
+```
+### Problem 1
+```{r}
+fullLinMod = lm(Life.Exp~., data=states)
+summary(fullLinMod)
+sum((fullLinMod$residuals)^2)
+```
+
+*Note that confusion matrices and areas under ROC curves (AUC) are used to gauge the accuracy of classification models (categorical response var) while sum of squared errors (SSEs) are used to gauge the accuracy of regression models (numeric response var).*
+
+```{r}
+signifAndAlmostSignifLinMod = lm(Life.Exp~Population+ Murder+Frost+HS.Grad, data=states)
+summary(signifAndAlmostSignifLinMod)
+sum((signifAndAlmostSignifLinMod$residuals)^2)
+```
+
+### Problem 2
+*Note: For the rpart function, minbucket is by default set to 7 if no minsplit is specified or if a minsplit is specified, minbucket is set to round(minsplit/3). cp is by default set to 0.01*
+
+```{r}
+FullCART = rpart(Life.Exp~., data=states)
+prp(FullCART)
+```
+Murder is the only variable that shows up in the full tree.
+```{r}
+cor(states)[4,]
+```
+That murder shows up as a variable falls in line with intuition, as Murder has the highest correlation with Life.Exp.
+```{r}
+FullCARTPreds = predict(FullCART)
+sum((FullCARTPreds - states$Life.Exp)^2)
+```
+So the CART model (with the default minbucket value of 7) using all the variables (even though only Murder is present in the tree) vastly underperforms relative to either of the two linear models above.
+
+Let's try making a slightly richer tree by using a minbucket value of 5 (slightly higher than the default of 7) and see if this lowers the SSE.
+```{r}
+FullCARTLowerMinbucket = rpart(Life.Exp~., data=states, minbucket=5)
+prp(FullCARTLowerMinbucket)
+FullCARTLowerMinbucketPreds = predict(FullCARTLowerMinbucket)
+sum((FullCARTLowerMinbucketPreds - states$Life.Exp)^2)
+```
+So the SSE dropped significantly by just lowering the minbucket and this CART model's SSE is almost as low as those of the linear models above. In addition to Murder, both HS.Grad and Area make an appearance in the regression tree for this CART model.
+
+How about lowering minbucket to 1? (*Note: this isn't explicitly in the homework*)
+```{r}
+FullCARTSmallestMinbucket = rpart(Life.Exp~., data=states, minbucket=1)
+prp(FullCARTSmallestMinbucket, digits=4)
+FullCARTSmallestMinbucketPreds = predict(FullCARTSmallestMinbucket)
+sum((FullCARTSmallestMinbucketPreds - states$Life.Exp)^2)
+```
+The SSE is shockingly low at 4.94! However, the tree is a bit more complicated than desired.
+
+By some incredible feat of imagination let's say we guessed that the area of a state would have a huge influence on its life expectancy; then we could try to build a regression tree using only Area (both with and without minbucket=1)
+```{r}
+onlyAreaCART = rpart(Life.Exp~Area, data=states)
+prp(onlyAreaCART)
+onlyAreaCARTPreds = predict(onlyAreaCART)
+sum((states$Life.Exp - onlyAreaCARTPreds)^2)
+```
+
+```{r}
+onlyAreaCARTSmallestMinbucket = rpart(Life.Exp~Area, data=states, minbucket=1)
+prp(onlyAreaCARTSmallestMinbucket)
+onlyAreaCARTSmallestMinbucketPreds = predict(onlyAreaCARTSmallestMinbucket)
+sum((states$Life.Exp - onlyAreaCARTSmallestMinbucketPreds)^2)
+```
+
+Both CART trees using just Area are pretty complicated, but the one with minbucket=1 is easily the more complicated. The SSE for the tree with the default minbucket is pretty bad (over 40), but the one for the tree with the minbucket of 1 is really good at 9.31. However, the CART tree with minbucket of 1 and all the variables is both far more interpretable and more accurate (SSE of 4.94) than the CART tree with just Area and minbucket of 1.
+
+### Problem 3
+Demonstrates picking the optimal cp value and using that value as a parameter to rpart().
+```{r}
+set.seed(111)
+tr.control=trainControl(method="cv", number=10)
+cp.grid =expand.grid(.cp=seq(0.01,0.5,0.01))
+train(Life.Exp~.,data=states,method="rpart",trControl=tr.control,tuneGrid=cp.grid)
+```
+Optimal value is highest cp value with lowest RMSE when there are cp values with tied RMSEs. Higher cp values mean simpler trees.
+
+```{r}
+tunedCARTmodel = rpart(Life.Exp~., data=states, cp=0.12)
+prp(tunedCARTmodel)
+tunedCARTmodelPreds = predict(tunedCARTmodel)
+sum((tunedCARTmodelPreds-states$Life.Exp)^2)
+```
+Oddly enough, the tuned rpart() model has a higher SSE than the original model with the defaults (its SSE was 28.99848). However, NOTE that these SSEs were all calculated by testing on the ORIGINAL data, so an overfit model will do better on the original data. We'd still expect the tuned CART model to perform better on out-of-sample test data (even though its SSE is higher than that for the default CART model on in-sample data).
+
+We'll now perform a tuned CART using ONLY Area as the predictor and see how the model performs relative to the others.
+```{r}
+set.seed(111)
+tr.control=trainControl(method="cv", number=10)
+cp.grid =expand.grid(.cp=seq(0.01,0.5,0.01))
+train(Life.Exp~Area,data=states,method="rpart",trControl=tr.control,tuneGrid=cp.grid)
+```
+
+```{r}
+tunedCARTAreaOnly = rpart(Life.Exp~Area, data=states, cp=0.01)
+prp(tunedCARTAreaOnly)
+tunedCARTAreaOnlyPreds = predict(tunedCARTAreaOnly)
+sum((tunedCARTAreaOnlyPreds-states$Life.Exp)^2)
+```
+Note that the SSE is much higher than that for the untuned CART model with only Area as a predictor.
+This could be because the SSEs have not been calculated with out-of-sample data.
+
