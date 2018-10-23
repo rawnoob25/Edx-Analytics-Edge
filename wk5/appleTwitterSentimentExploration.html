@@ -462,16 +462,16 @@ rfSelectedVars1Acc = (t[1,1]+t[2,2])/sum(t)
 rfSelectedVars1Acc</code></pre>
 <pre><code>## [1] 0.8901408</code></pre>
 <p>Looks like with the random forest model we got the accuracy up to over 89% on out-of-sample data!</p>
-<pre class="r"><code>logModAll = glm(Negative~freak+hate+stuff+cant+shame+suck,data=train, family=&quot;binomial&quot;)
-logModAllPreds = predict(logModAll, newdata=test, type=&quot;response&quot;)
-t = table(test$Negative, logModAllPreds&gt;=0.5)
+<pre class="r"><code>logModSelectVars = glm(Negative~freak+hate+stuff+cant+shame+suck,data=train, family=&quot;binomial&quot;)
+logModSelectVarsPreds = predict(logModSelectVars, newdata=test, type=&quot;response&quot;)
+t = table(test$Negative, logModSelectVarsPreds&gt;=0.5)
 t</code></pre>
 <pre><code>##        
 ##         FALSE TRUE
 ##   FALSE   296    4
 ##   TRUE     31   24</code></pre>
-<pre class="r"><code>logModAllPredsAcc = (t[1,1]+t[2,2])/sum(t)
-logModAllPredsAcc</code></pre>
+<pre class="r"><code>logModSelectVarsAcc = (t[1,1]+t[2,2])/sum(t)
+logModSelectVarsAcc</code></pre>
 <pre><code>## [1] 0.9014085</code></pre>
 <p>Looks like logistic regression using just freak, hate, stuff, cant, shame and suck as predictors got us an accuracy over 90%!</p>
 </div>
