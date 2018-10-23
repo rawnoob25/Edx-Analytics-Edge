@@ -20,18 +20,19 @@ table(tweets$Negative)
 # Install new packages
 
 install.packages("tm")
-library(tm)
+library(tm) #for VectorSource and VCorpus fns; for tm_map function and some character transformation 
+#functions- including removePunctuation; for DocumentTermMatrix function; for inspect function
+#(called on DocumentTermMatrix); for findFreqTerms() function; for removeSparseTerms() function
 install.packages("SnowballC")
 library(SnowballC)
 
 
 # Create corpus
-corpus = VCorpus(VectorSource(tweets$Tweet)) 
+corpus = VCorpus(VectorSource(tweets$Tweet)) #convert Tweet column of tweets to a corpus 
 
 # Look at corpus
 corpus
-corpus[[1]]$content
-
+corpus[[1]]$content #use double bracket to index corpus element and '$content' to access its content
 
 # Convert to lower-case
 
@@ -63,6 +64,7 @@ corpus[[1]]$content
 
 
 
+
 # Video 6
 
 # Create matrix
@@ -73,7 +75,7 @@ frequencies
 
 # Look at matrix 
 
-inspect(frequencies[1000:1005,505:515])
+inspect(frequencies[1000:1005,505:515]) 
 
 # Check for sparsity
 
@@ -81,7 +83,9 @@ findFreqTerms(frequencies, lowfreq=20)
 
 # Remove sparse terms
 
-sparse = removeSparseTerms(frequencies, 0.995)
+sparse = removeSparseTerms(frequencies, 0.995) #keep only terms that appear in at least 0.5%
+#of the tweets; in general, passing a sparsity value of s will keep only terms that appear
+#in at least [100*(1-s)]% of the documents in the DocumentTermMatrix
 sparse
 
 # Convert to a data frame
@@ -90,7 +94,9 @@ tweetsSparse = as.data.frame(as.matrix(sparse))
 
 # Make all variable names R-friendly
 
-colnames(tweetsSparse) = make.names(colnames(tweetsSparse))
+colnames(tweetsSparse) = make.names(colnames(tweetsSparse)) #make.names() makes syntactically
+#valid names when passed a character vector; returns a character vector of names that
+#have been modified to be syntactically valid
 
 # Add dependent variable
 

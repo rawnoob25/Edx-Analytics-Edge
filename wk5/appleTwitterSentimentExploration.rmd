@@ -1,0 +1,194 @@
+---
+title: "Exploring sentiments on Apple's twitter data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=TRUE, include=TRUE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+library(tm)
+library(dplyr)
+library(magrittr)
+library(caTools)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(caret)
+library(e1071)
+```
+
+
+We'll first read in the data and store it as a Corpus. When it's a Corpus, the tm library's functions can be used to process the data.
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+tweets = read.csv("tweets.csv", stringsAsFactors=FALSE)
+tweets$Negative = as.factor(tweets$Avg <= -1)
+corpus = VCorpus(VectorSource(tweets$Tweet)) #convert Tweet column of tweets to a Corpus 
+corpus[[1]]$content
+corpus
+```
+So we now have the 1181 tweets from the Tweet column of tweets stored in a Corpus of 1181 documents.
+
+Now with the data in a corpus, it's easy to process it using some tm library functions. We'll convert all the data to lowercase, remove punctuation, remove stopwords (and the word 'apple', since it'll be ubiquitous in this dataset and won't help us with sentiment analysis), and stem all of the words.
+```{r}
+# Convert to lower-case
+corpus = tm_map(corpus, content_transformer(tolower))
+# Remove punctuation
+corpus = tm_map(corpus, removePunctuation)
+# Remove stopwords and apple
+corpus = tm_map(corpus, removeWords, c("apple", stopwords("english")))
+# Stem document 
+corpus = tm_map(corpus, stemDocument)
+corpus[[1]]$content
+```
+To get a listing of the counts of words in each document, we'll have to convert the Corpus to a tm::DocumentTermMatrix.
+```{r}
+frequencies = DocumentTermMatrix(corpus)
+frequencies
+```
+There are 3,289 distinct words across the 1,181 documents. 
+
+Let's inspect some of the data in the DocumentTermMatrix, frequencies.
+
+```{r}
+inspect(frequencies[1000:1005,505:515]) 
+```
+
+We'll now look for (stemmed version of) terms that appear at least 50 times.
+```{r}
+findFreqTerms(frequencies, lowfreq=50)
+```
+
+We'll need to reduce the number of terms in the matrix to a much smaller number so that we have less data to deal with. This will be done by including in the matrix only terms that make an appearance in at least 0.5% of the tweets.
+```{r}
+sparse = removeSparseTerms(frequencies, 0.995) #the second parameter is the sparsity (parameter name is 'sparse'); it specifies to include only terms that appear in at least 100*(1-sparse) percent of the documents
+sparse
+```
+So we've cut  down the number of words (columns in the DocumentTermMatrix) from 3,289 to a far more manageable 309.
+
+We'll now convert the DocumentTermMatrix to a dataframe so that the data is structured in a format suitable for applying classification techniques to it.
+```{r}
+sparseData = as.data.frame(as.matrix(sparse))
+dim(sparseData)
+names(sparseData)[1:10]
+```
+We don't want column names to start with a number, so we'll now clean them up. We'll also add the true sentiments (With negative sentiment's upper threshold of -1) to sparseData.
+```{r}
+sparseData$Negative = tweets$Negative
+colnames(sparseData)=make.names(colnames(sparseData))
+names(sparseData)[1:10]
+```
+
+We'll now split sparseData into training and testing sets and build a classification tree w/ the default parameters; we'll subsequently build a random forest model and a tuned classification tree model and compare the accuracy of all models.
+```{r}
+set.seed(123)
+split = sample.split(sparseData$Negative, SplitRatio = 0.70)
+train = subset(sparseData, split)
+test = subset(sparseData, !split)
+defaultCART = rpart(Negative~., data=train, method="class")
+defaultCARTPreds = predict(defaultCART, newdata=test, type="class")
+t=table(test$Negative, defaultCARTPreds)
+defaultCARTAcc = (t[1,1]+t[2,2])/sum(t) #computes accuracy
+defaultCARTAcc
+
+baselineAcc = sum(!as.logical(test$Negative))/nrow(test)
+baselineAcc
+```
+So the default CART model gives us a 3.38% improvement over the baseline model (always predict tweet to not have  negative sentiment).
+```{r}
+set.seed(123)
+rf = randomForest(Negative~., data=train) #ok to leave out "method='class'" here
+rfPreds = predict(rf, newdata=test, type="class")
+t = table(test$Negative, rfPreds)
+t
+rfAcc = (t[1,1]+t[2,2])/nrow(test)
+rfAcc
+set.seed(123)
+tr.control=trainControl(method="cv", number=10)
+cp.grid =expand.grid(.cp=seq(0.002,0.1,0.002))
+train(Negative~.,data=train,method="rpart",trControl=tr.control,tuneGrid=cp.grid)
+tunedCART = rpart(Negative~., data=train, cp=0.042, method="class")
+tunedCARTPreds = predict(tunedCART, newdata=test, type="class")
+t = table(test$Negative, tunedCARTPreds)
+t
+tunedCARTAcc = (t[1,1]+t[2,2])/nrow(test)
+tunedCARTAcc
+```
+So the accuracies of both the random forest and tuned CART models are the same; these models are only a bit more accurate than the default CART model.
+
+## Trying to find a model that'll yield an accuracy of at least 90%
+
+Let's look at plots of the two CART models, and then let's look at the most variables on which splits are performed most frequently and those whose splits result in the highest decrease in impurity for the random forest model.
+
+```{r}
+prp(defaultCART)
+prp(tunedCART)
+```
+
+So the tuned cart model looks simpler (and happens to be a bit more accurate) and the variables freak and hate look like variables of interest.
+
+
+```{r}
+vu = varUsed(rf, count=TRUE)
+vusorted = sort(vu, decreasing = TRUE, index.return = TRUE)
+names(rf$forest$xlevels[vusorted$ix])%>%head(20)
+```
+Above is a list of the 20 variables on which a split is performed most frequently in the random forest model.
+```{r}
+varImpPlot(rf, n.var=10)
+```
+So it looks like trying a CART model with freak, hate, stuff cant, shame and suck as predictors might be fruitful.
+```{r}
+selectVarsCart1=rpart(Negative~freak+hate+stuff+cant+shame+suck, data=train, method="class")
+selectVarsCart1Preds = predict(selectVarsCart1, newdata=test,type="class")
+t=table(test$Negative, selectVarsCart1Preds)
+selectVarsCart1Acc = (t[1,1]+t[2,2])/sum(t)
+selectVarsCart1Acc
+```
+Looks better than the original untuned CART model.
+Let's tune it.
+```{r}
+set.seed(123)
+tr.control=trainControl(method="cv", number=10)
+cp.grid =expand.grid(.cp=seq(0.002,0.1,0.002))
+train(Negative~freak+hate+stuff+cant+shame+suck,data=train,method="rpart",trControl=tr.control,tuneGrid=cp.grid)
+selectVarsCart1Tuned = rpart(Negative~freak+hate+stuff+cant+shame+suck, data=train, method="class", cp=0.026)
+selectVarsCart1TunedPreds = predict(selectVarsCart1Tuned, newdata=test, type="class")
+t = table(test$Negative, selectVarsCart1TunedPreds)
+selectVarsCart1Acc = (t[1,1]+t[2,2])/sum(t)
+selectVarsCart1Acc
+```
+
+Accuracy is still the same as the tuned model using all the variables. Why? Well it's because (as you see in the plot below) the resulting tree is the same as in the tuned model using all the variables.
+
+```{r}
+prp(selectVarsCart1)
+```
+
+```{r}
+set.seed(123)
+rfSelectedVars1= randomForest(Negative~freak+hate+stuff+cant+shame+suck, data=train)
+rfSelectedVars1Preds = predict(rfSelectedVars1, newdata=test, type="class")
+t = table(test$Negative, rfSelectedVars1Preds)
+rfSelectedVars1Acc = (t[1,1]+t[2,2])/sum(t)
+rfSelectedVars1Acc
+```
+Looks like with the random forest model we got the accuracy up to over 89% on out-of-sample data!
+
+```{r}
+logModAll = glm(Negative~freak+hate+stuff+cant+shame+suck,data=train, family="binomial")
+logModAllPreds = predict(logModAll, newdata=test, type="response")
+t = table(test$Negative, logModAllPreds>=0.5)
+t
+logModAllPredsAcc = (t[1,1]+t[2,2])/sum(t)
+logModAllPredsAcc
+```
+
+Looks like logistic regression using just freak, hate, stuff, cant, shame and suck as predictors got us an accuracy over 90%!
