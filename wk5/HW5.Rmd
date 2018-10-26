@@ -1,0 +1,203 @@
+---
+title: "Analytics Edge HW4 and some notes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Please note that the analysis of the 'states revisited' dataset is the most complete and is the easiest to study from of the datsets analyzed in this writeup.
+
+## TODO: Look at all text preceded by 'NOTE:'
+```{r}
+library(magrittr)
+library(dplyr)
+library(caTools) #for splitting into train/test sets
+library(ROCR) #for computing AUCs
+library(rpart) #contains rpart function used to build classification and regression trees
+library(rpart.plot) #contains prp function used to plot classification and regression trees
+library(randomForest) #for building random forest models
+library(caret) #for cross-validation
+library(e1071) #for cross-validation
+library(tm)
+Sys.setlocale("LC_ALL", "C")
+```
+## Detecting Vandalism in edits to Wikipedia's Language page
+
+## Automatic Reviews of Medical Literature
+
+### Problem 1
+```{r}
+trials = read.csv('clinical_trial.csv', stringsAsFactors = F)
+names(trials)
+#head(trials)
+#trials[1,2]
+nchar(trials$abstract)%>%max
+sum(nchar(trials$abstract)==0)
+trials[which.min(nchar(trials$title)),1]
+```
+
+### Problem 2
+```{r}
+corpusTitle = VCorpus(VectorSource(trials$title))
+corpusAbstract = VCorpus(VectorSource(trials$abstract))
+corpusTitle = tm_map(corpusTitle, content_transformer(tolower))
+corpusAbstract = tm_map(corpusAbstract, content_transformer(tolower))
+corpusTitle = tm_map(corpusTitle, removePunctuation)
+corpusAbstract = tm_map(corpusAbstract, removePunctuation)
+corpusTitle = tm_map(corpusTitle, removeWords, stopwords('english'))
+corpusAbstract = tm_map(corpusAbstract, removeWords, stopwords('english'))
+```
+
+```{r}
+corpusTitle = tm_map(corpusTitle, stemDocument)
+corpusAbstract = tm_map(corpusAbstract, stemDocument)
+```
+
+```{r}
+dtmTitle = DocumentTermMatrix(corpusTitle)
+dtmAbstract = DocumentTermMatrix(corpusAbstract) ##THIS LINE GIVES ERROR: WILL REDO ALL STEPS UP TO (AND INCLUDING) THE CREATION OF dtmAbstract IN CHUNK BELOW
+dtmTitle
+dtmAbstract
+dtmTitleSparse = removeSparseTerms(dtmTitle, sparse = 0.95)
+dtmAbstractSparse = removeSparseTerms(dtmAbstract, sparse=0.95)
+dtmTitleSparse
+dtmAbstractSparse
+```
+
+```{r}
+dtmTitle = as.data.frame(as.matrix(dtmTitleSparse))
+dtmAbstract = as.data.frame(as.matrix(dtmAbstractSparse))
+which.max(colSums(dtmAbstract))
+```
+
+
+### Problem 3
+```{r}
+colnames(dtmTitle) = paste0("T", names(dtmTitle))
+colnames(dtmTitle)
+colnames(dtmAbstract) = paste0("A", colnames(dtmAbstract))
+dtm = cbind(dtmTitle, dtmAbstract)
+dtm$trial = trials$trial
+```
+
+```{r}
+names(dtm)%>%sort
+```
+
+
+```{r}
+set.seed(144)
+split = sample.split(dtm$trial, SplitRatio = 0.70)
+train = subset(dtm, split)
+test = subset(dtm,!split)
+
+table(train$trial)
+```
+
+```{r}
+trialCART = rpart(trial~.,data=train, method="class")
+prp(trialCART, digits=5)
+trainCARTProbs = (predict(trialCART))[,2]
+max(trainCARTProbs)
+#max(trainCARTProbs)
+```
+
+## Separating Spam emails from Ham emails
+
+### Problem 1
+```{r}
+emails = read.csv('emails.csv', stringsAsFactors = FALSE)
+nrow(emails)
+sum(emails$spam)
+substr(emails$text[3],1,20)
+max(nchar(emails$text))
+which.min(nchar(emails$text))
+```
+
+### Problem 2
+```{r}
+emailsCorpus = VCorpus(VectorSource(emails$text))
+emailsCorpus = tm_map(emailsCorpus, content_transformer(tolower))
+emailsCorpus = tm_map(emailsCorpus, removePunctuation)
+emailsCorpus = tm_map(emailsCorpus, removeWords, stopwords('english'))
+emailsCorpus = tm_map(emailsCorpus, stemDocument)
+dtm = DocumentTermMatrix(emailsCorpus)
+```
+
+```{r}
+dtm
+spdtm = removeSparseTerms(dtm, sparse=0.95)
+spdtm
+emailsSparse = as.data.frame(as.matrix(spdtm))
+colnames(emailsSparse)=make.names(colnames(emailsSparse))
+#class(colSums(emailsSparse))
+names(emailsSparse)[which.max(colSums(emailsSparse))]
+emailsSparse$spam = emails$spam
+which(colSums(subset(emailsSparse, spam == 0))>=5000)
+which(colSums(subset(emailsSparse, spam == 1))>=1000)
+```
+
+### Problem 3
+```{r}
+emailsSparse$spam = as.factor(emailsSparse$spam)
+set.seed(123)
+split=sample.split(emailsSparse$spam, SplitRatio = 0.70)
+train = subset(emailsSparse, split)
+test = subset(emailsSparse, !split)
+spamLog = glm(spam~., data=train, family='binomial')
+spamCART = rpart(spam~., data=train, method="class")
+set.seed(123)
+spamRF = randomForest(spam~., data=train, method="class")
+spamLogProbs = predict(spamLog, type="response")
+spamCARTProbs = (predict(spamCART))[,2]
+spamRFProbs = (predict(spamRF, type="prob"))[,2]
+```
+
+```{r}
+sum(spamLogProbs<0.00001)
+sum(spamLogProbs>0.99999)
+sum(0.00001<=spamLogProbs & spamLogProbs<=0.99999)
+```
+
+```{r}
+summary(spamLog)
+prp(spamCART)
+```
+
+QUESTION: There are too many variables in the above output. How does one print only the statistically significant ones?
+
+```{r}
+table(train$spam, spamLogProbs>=0.50)
+spamLogPredictionObj = prediction(spamLogProbs, train$spam)
+as.numeric(performance(spamLogPredictionObj,"auc")@y.values)
+```
+
+```{r}
+table(train$spam, spamCARTProbs>=0.50)
+spamCARTPredictionObj = prediction(spamCARTProbs, train$spam)
+as.numeric(performance(spamCARTPredictionObj,"auc")@y.values)
+```
+
+```{r}
+table(train$spam, spamRFProbs>=0.50)
+spamRFPredictionObj = prediction(spamRFProbs, train$spam)
+as.numeric(performance(spamRFPredictionObj, "auc")@y.values)
+```
+
+```{r}
+spamLogProbs = predict(spamLog, newdata=test, type="response")
+
+spamCARTProbs = (predict(spamCART, newdata=test))[,2]
+spamRFProbs = (predict(spamRF, newdata=test, type="prob"))[,2]
+
+table(test$spam, spamLogProbs>=0.5)
+spamLogPredictionObj = prediction(spamLogProbs, test$spam)
+as.numeric(performance(spamLogPredictionObj,"auc")@y.values)
+table(test$spam, spamCARTProbs>=0.5)
+spamCARTPredictionObj = prediction(spamCARTProbs, test$spam)
+as.numeric(performance(spamCARTPredictionObj,"auc")@y.values)
+table(test$spam, spamRFProbs>=0.5)
+spamRFPredictionObj = prediction(spamRFProbs, test$spam)
+as.numeric(performance(spamRFPredictionObj, "auc")@y.values)
+```
