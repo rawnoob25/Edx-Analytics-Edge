@@ -100,8 +100,19 @@ trialCART = rpart(trial~.,data=train, method="class")
 prp(trialCART, digits=5)
 trainCARTProbs = (predict(trialCART))[,2]
 max(trainCARTProbs)
-#max(trainCARTProbs)
 ```
+
+```{r}
+table(train$trial, trainCARTProbs>=0.5)
+```
+### Problem 4
+```{r}
+testCARTProbs = (predict(trialCART, newdata=test))[,2]
+table(test$trial, testCARTProbs>=0.5)
+testCARTPredictionObj = prediction(testCARTProbs, test$trial)
+as.numeric(performance(testCARTPredictionObj, "auc")@y.values)
+```
+
 
 ## Separating Spam emails from Ham emails
 

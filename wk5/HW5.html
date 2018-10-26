@@ -241,17 +241,186 @@ dtmTitleSparse</code></pre>
 ## Sparsity           : 85%
 ## Maximal term length: 15
 ## Weighting          : term frequency (tf)</code></pre>
-<pre class="r"><code>dtmAbstract = as.data.frame(as.matrix(dtmAbstractSparse))
+<pre class="r"><code>dtmTitle = as.data.frame(as.matrix(dtmTitleSparse))
+dtmAbstract = as.data.frame(as.matrix(dtmAbstractSparse))
 which.max(colSums(dtmAbstract))</code></pre>
 <pre><code>## patient 
 ##     212</code></pre>
-<p><strong>Bottom line of below chunk gives an error</strong></p>
-<pre class="r"><code>corpusAbstract = VCorpus(VectorSource(trials$abstract))
-corpusAbstract = tm_map(corpusAbstract, content_transformer(tolower))
-corpusAbstract = tm_map(corpusAbstract, removePunctuation)
-corpusAbstract = tm_map(corpusAbstract, removeWords, stopwords('english'))
-corpusAbstract = tm_map(corpusAbstract, stemDocument)
-dtmAbstract = DocumentTermMatrix(corpusAbstract) ##This line gives error</code></pre>
+</div>
+<div id="problem-3" class="section level3">
+<h3>Problem 3</h3>
+<pre class="r"><code>colnames(dtmTitle) = paste0(&quot;T&quot;, names(dtmTitle))
+colnames(dtmTitle)</code></pre>
+<pre><code>##  [1] &quot;Tadjuv&quot;           &quot;Tadvanc&quot;          &quot;Tbreast&quot;         
+##  [4] &quot;Tcancer&quot;          &quot;Tchemotherapi&quot;    &quot;Tclinic&quot;         
+##  [7] &quot;Tcombin&quot;          &quot;Tcompar&quot;          &quot;Tcyclophosphamid&quot;
+## [10] &quot;Tdocetaxel&quot;       &quot;Tdoxorubicin&quot;     &quot;Tearli&quot;          
+## [13] &quot;Teffect&quot;          &quot;Tgroup&quot;           &quot;Tiii&quot;            
+## [16] &quot;Tmetastat&quot;        &quot;Tpatient&quot;         &quot;Tphase&quot;          
+## [19] &quot;Tplus&quot;            &quot;Tpostmenopaus&quot;    &quot;Trandom&quot;         
+## [22] &quot;Trandomis&quot;        &quot;Trespons&quot;         &quot;Tresult&quot;         
+## [25] &quot;Tstudi&quot;           &quot;Ttamoxifen&quot;       &quot;Ttherapi&quot;        
+## [28] &quot;Ttreatment&quot;       &quot;Ttrial&quot;           &quot;Tversus&quot;         
+## [31] &quot;Twomen&quot;</code></pre>
+<pre class="r"><code>colnames(dtmAbstract) = paste0(&quot;A&quot;, colnames(dtmAbstract))
+dtm = cbind(dtmTitle, dtmAbstract)
+dtm$trial = trials$trial</code></pre>
+<pre class="r"><code>names(dtm)%&gt;%sort</code></pre>
+<pre><code>##   [1] &quot;A0001&quot;            &quot;A001&quot;             &quot;A005&quot;            
+##   [4] &quot;A100&quot;             &quot;A500&quot;             &quot;A5fluorouracil&quot;  
+##   [7] &quot;Aaccord&quot;          &quot;Aachiev&quot;          &quot;Aactiv&quot;          
+##  [10] &quot;Aaddit&quot;           &quot;Aadjuv&quot;           &quot;Aadminist&quot;       
+##  [13] &quot;Aadministr&quot;       &quot;Aadvanc&quot;          &quot;Aadvers&quot;         
+##  [16] &quot;Aage&quot;             &quot;Aagent&quot;           &quot;Aaim&quot;            
+##  [19] &quot;Aalon&quot;            &quot;Aalso&quot;            &quot;Aalthough&quot;       
+##  [22] &quot;Aamong&quot;           &quot;Aanalys&quot;          &quot;Aanalysi&quot;        
+##  [25] &quot;Aanalyz&quot;          &quot;Aandor&quot;           &quot;Aanthracyclin&quot;   
+##  [28] &quot;Aappear&quot;          &quot;Aarm&quot;             &quot;Aaromatas&quot;       
+##  [31] &quot;Aassess&quot;          &quot;Aassign&quot;          &quot;Aassoci&quot;         
+##  [34] &quot;Aavail&quot;           &quot;Aaxillari&quot;        &quot;Abackground&quot;     
+##  [37] &quot;Abase&quot;            &quot;Abaselin&quot;         &quot;Abenefit&quot;        
+##  [40] &quot;Abetter&quot;          &quot;Abone&quot;            &quot;Abreast&quot;         
+##  [43] &quot;Acan&quot;             &quot;Acancer&quot;          &quot;Acarcinoma&quot;      
+##  [46] &quot;Acase&quot;            &quot;Acaus&quot;            &quot;Acell&quot;           
+##  [49] &quot;Achang&quot;           &quot;Acharacterist&quot;    &quot;Achemotherapi&quot;   
+##  [52] &quot;Aclinic&quot;          &quot;Acmf&quot;             &quot;Acombin&quot;         
+##  [55] &quot;Acommon&quot;          &quot;Acompar&quot;          &quot;Acomparison&quot;     
+##  [58] &quot;Acomplet&quot;         &quot;Aconclus&quot;         &quot;Aconduct&quot;        
+##  [61] &quot;Aconfid&quot;          &quot;Aconfirm&quot;         &quot;Aconsid&quot;         
+##  [64] &quot;Aconsist&quot;         &quot;Acontinu&quot;         &quot;Acontrol&quot;        
+##  [67] &quot;Acorrel&quot;          &quot;Acours&quot;           &quot;Acycl&quot;           
+##  [70] &quot;Acyclophosphamid&quot; &quot;Adaili&quot;           &quot;Adata&quot;           
+##  [73] &quot;Aday&quot;             &quot;Adeath&quot;           &quot;Adecreas&quot;        
+##  [76] &quot;Adefin&quot;           &quot;Ademonstr&quot;        &quot;Adesign&quot;         
+##  [79] &quot;Adetect&quot;          &quot;Adetermin&quot;        &quot;Adevelop&quot;        
+##  [82] &quot;Adfs&quot;             &quot;Adiffer&quot;          &quot;Adiseas&quot;         
+##  [85] &quot;Adiseasefre&quot;      &quot;Adistant&quot;         &quot;Adocetaxel&quot;      
+##  [88] &quot;Adose&quot;            &quot;Adoubleblind&quot;     &quot;Adoxorubicin&quot;    
+##  [91] &quot;Adrug&quot;            &quot;Adue&quot;             &quot;Adurat&quot;          
+##  [94] &quot;Aearli&quot;           &quot;Aeffect&quot;          &quot;Aefficaci&quot;       
+##  [97] &quot;Aeight&quot;           &quot;Aeither&quot;          &quot;Aelig&quot;           
+## [100] &quot;Aend&quot;             &quot;Aendocrin&quot;        &quot;Aendpoint&quot;       
+## [103] &quot;Aenrol&quot;           &quot;Aenter&quot;           &quot;Aepirubicin&quot;     
+## [106] &quot;Aestim&quot;           &quot;Aestrogen&quot;        &quot;Aevalu&quot;          
+## [109] &quot;Aevent&quot;           &quot;Aeveri&quot;           &quot;Aevid&quot;           
+## [112] &quot;Aexamin&quot;          &quot;Aexperienc&quot;       &quot;Aexpress&quot;        
+## [115] &quot;Afactor&quot;          &quot;Afailur&quot;          &quot;Afind&quot;           
+## [118] &quot;Afirst&quot;           &quot;Afirstlin&quot;        &quot;Afive&quot;           
+## [121] &quot;Afluorouracil&quot;    &quot;Afollow&quot;          &quot;Afollowup&quot;       
+## [124] &quot;Afound&quot;           &quot;Afour&quot;            &quot;Afrequent&quot;       
+## [127] &quot;Afunction&quot;        &quot;Ageneral&quot;         &quot;Agiven&quot;          
+## [130] &quot;Agrade&quot;           &quot;Agreater&quot;         &quot;Agroup&quot;          
+## [133] &quot;Agrowth&quot;          &quot;Ahazard&quot;          &quot;Ahematolog&quot;      
+## [136] &quot;Aher2&quot;            &quot;Ahigh&quot;            &quot;Ahigher&quot;         
+## [139] &quot;Ahistolog&quot;        &quot;Ahormon&quot;          &quot;Ahowev&quot;          
+## [142] &quot;Ahuman&quot;           &quot;Ahundr&quot;           &quot;Aidentifi&quot;       
+## [145] &quot;Aiii&quot;             &quot;Aimport&quot;          &quot;Aimprov&quot;         
+## [148] &quot;Aincid&quot;           &quot;Ainclud&quot;          &quot;Aincreas&quot;        
+## [151] &quot;Aindepend&quot;        &quot;Aindic&quot;           &quot;Ainform&quot;         
+## [154] &quot;Ainfus&quot;           &quot;Ainhibitor&quot;       &quot;Ainiti&quot;          
+## [157] &quot;Ainterv&quot;          &quot;Aintraven&quot;        &quot;Ainvestig&quot;       
+## [160] &quot;Ainvolv&quot;          &quot;Alarg&quot;            &quot;Aleast&quot;          
+## [163] &quot;Aless&quot;            &quot;Alevel&quot;           &quot;Alife&quot;           
+## [166] &quot;Alimit&quot;           &quot;Alocal&quot;           &quot;Alonger&quot;         
+## [169] &quot;Alow&quot;             &quot;Alower&quot;           &quot;Alymph&quot;          
+## [172] &quot;Amain&quot;            &quot;Amajor&quot;           &quot;Amarker&quot;         
+## [175] &quot;Amastectomi&quot;      &quot;Amay&quot;             &quot;Ambc&quot;            
+## [178] &quot;Amean&quot;            &quot;Ameasur&quot;          &quot;Amedian&quot;         
+## [181] &quot;Ametastas&quot;        &quot;Ametastat&quot;        &quot;Amethod&quot;         
+## [184] &quot;Amethotrex&quot;       &quot;Amgm2&quot;            &quot;Amodel&quot;          
+## [187] &quot;Amonth&quot;           &quot;Amulticent&quot;       &quot;Amultivari&quot;      
+## [190] &quot;Anausea&quot;          &quot;Aneed&quot;            &quot;Anegat&quot;          
+## [193] &quot;Aneoadjuv&quot;        &quot;Aneutropenia&quot;     &quot;Anew&quot;            
+## [196] &quot;Anode&quot;            &quot;Anodeposit&quot;       &quot;Anumber&quot;         
+## [199] &quot;Aobject&quot;          &quot;Aobserv&quot;          &quot;Aobtain&quot;         
+## [202] &quot;Aoccur&quot;           &quot;Aone&quot;             &quot;Aoper&quot;           
+## [205] &quot;Aoral&quot;            &quot;Aoutcom&quot;          &quot;Aoveral&quot;         
+## [208] &quot;Apaclitaxel&quot;      &quot;Apartial&quot;         &quot;Aparticip&quot;       
+## [211] &quot;Apatholog&quot;        &quot;Apatient&quot;         &quot;Aper&quot;            
+## [214] &quot;Aperform&quot;         &quot;Aperiod&quot;          &quot;Aphase&quot;          
+## [217] &quot;Aplacebo&quot;         &quot;Aplus&quot;            &quot;Apoint&quot;          
+## [220] &quot;Apopul&quot;           &quot;Aposit&quot;           &quot;Apossibl&quot;        
+## [223] &quot;Apostmenopaus&quot;    &quot;Apostop&quot;          &quot;Apotenti&quot;        
+## [226] &quot;Apredict&quot;         &quot;Apremenopaus&quot;     &quot;Apresent&quot;        
+## [229] &quot;Apretreat&quot;        &quot;Aprevent&quot;         &quot;Aprevious&quot;       
+## [232] &quot;Aprimari&quot;         &quot;Aprior&quot;           &quot;Aprofil&quot;         
+## [235] &quot;Aprogesteron&quot;     &quot;Aprognost&quot;        &quot;Aprogress&quot;       
+## [238] &quot;Aprogressionfre&quot;  &quot;Aprolong&quot;         &quot;Aproport&quot;        
+## [241] &quot;Aprospect&quot;        &quot;Aprovid&quot;          &quot;Apurpos&quot;         
+## [244] &quot;Aqualiti&quot;         &quot;Aradiotherapi&quot;    &quot;Arandom&quot;         
+## [247] &quot;Arandomis&quot;        &quot;Arang&quot;            &quot;Arate&quot;           
+## [250] &quot;Aratio&quot;           &quot;Areceiv&quot;          &quot;Areceptor&quot;       
+## [253] &quot;Areceptorposit&quot;   &quot;Arecurr&quot;          &quot;Areduc&quot;          
+## [256] &quot;Areduct&quot;          &quot;Aregard&quot;          &quot;Aregimen&quot;        
+## [259] &quot;Aregress&quot;         &quot;Arelaps&quot;          &quot;Arelat&quot;          
+## [262] &quot;Aremain&quot;          &quot;Areport&quot;          &quot;Arequir&quot;         
+## [265] &quot;Arespect&quot;         &quot;Arespond&quot;         &quot;Arespons&quot;        
+## [268] &quot;Aresult&quot;          &quot;Arisk&quot;            &quot;Asafeti&quot;         
+## [271] &quot;Asampl&quot;           &quot;Aschedul&quot;         &quot;Ascore&quot;          
+## [274] &quot;Asecond&quot;          &quot;Asecondari&quot;       &quot;Aseen&quot;           
+## [277] &quot;Aselect&quot;          &quot;Asequenti&quot;        &quot;Aserum&quot;          
+## [280] &quot;Aset&quot;             &quot;Aseven&quot;           &quot;Asever&quot;          
+## [283] &quot;Ashow&quot;            &quot;Ashown&quot;           &quot;Aside&quot;           
+## [286] &quot;Asignific&quot;        &quot;Asimilar&quot;         &quot;Asingl&quot;          
+## [289] &quot;Asite&quot;            &quot;Asix&quot;             &quot;Asize&quot;           
+## [292] &quot;Astabl&quot;           &quot;Astage&quot;           &quot;Astandard&quot;       
+## [295] &quot;Astart&quot;           &quot;Astatist&quot;         &quot;Astatus&quot;         
+## [298] &quot;Astudi&quot;           &quot;Asubgroup&quot;        &quot;Asuggest&quot;        
+## [301] &quot;Asuperior&quot;        &quot;Asupport&quot;         &quot;Asurgeri&quot;        
+## [304] &quot;Asurviv&quot;          &quot;Asystem&quot;          &quot;Atamoxifen&quot;      
+## [307] &quot;Aterm&quot;            &quot;Atest&quot;            &quot;Atherapi&quot;        
+## [310] &quot;Athree&quot;           &quot;Atime&quot;            &quot;Atissu&quot;          
+## [313] &quot;Atoler&quot;           &quot;Atotal&quot;           &quot;Atoxic&quot;          
+## [316] &quot;Atreat&quot;           &quot;Atreatment&quot;       &quot;Atrend&quot;          
+## [319] &quot;Atrial&quot;           &quot;Atumor&quot;           &quot;Atumour&quot;         
+## [322] &quot;Atwo&quot;             &quot;Atype&quot;            &quot;Ause&quot;            
+## [325] &quot;Avalu&quot;            &quot;Aversus&quot;          &quot;Avomit&quot;          
+## [328] &quot;Aweek&quot;            &quot;Awell&quot;            &quot;Awherea&quot;         
+## [331] &quot;Awhether&quot;         &quot;Awithin&quot;          &quot;Awithout&quot;        
+## [334] &quot;Awomen&quot;           &quot;Ayear&quot;            &quot;Tadjuv&quot;          
+## [337] &quot;Tadvanc&quot;          &quot;Tbreast&quot;          &quot;Tcancer&quot;         
+## [340] &quot;Tchemotherapi&quot;    &quot;Tclinic&quot;          &quot;Tcombin&quot;         
+## [343] &quot;Tcompar&quot;          &quot;Tcyclophosphamid&quot; &quot;Tdocetaxel&quot;      
+## [346] &quot;Tdoxorubicin&quot;     &quot;Tearli&quot;           &quot;Teffect&quot;         
+## [349] &quot;Tgroup&quot;           &quot;Tiii&quot;             &quot;Tmetastat&quot;       
+## [352] &quot;Tpatient&quot;         &quot;Tphase&quot;           &quot;Tplus&quot;           
+## [355] &quot;Tpostmenopaus&quot;    &quot;Trandom&quot;          &quot;Trandomis&quot;       
+## [358] &quot;Trespons&quot;         &quot;Tresult&quot;          &quot;Tstudi&quot;          
+## [361] &quot;Ttamoxifen&quot;       &quot;Ttherapi&quot;         &quot;Ttreatment&quot;      
+## [364] &quot;Ttrial&quot;           &quot;Tversus&quot;          &quot;Twomen&quot;          
+## [367] &quot;trial&quot;</code></pre>
+<pre class="r"><code>set.seed(144)
+split = sample.split(dtm$trial, SplitRatio = 0.70)
+train = subset(dtm, split)
+test = subset(dtm,!split)
+
+table(train$trial)</code></pre>
+<pre><code>## 
+##   0   1 
+## 730 572</code></pre>
+<pre class="r"><code>trialCART = rpart(trial~.,data=train, method=&quot;class&quot;)
+prp(trialCART, digits=5)</code></pre>
+<p><img src="data:image/png;base64,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" width="672" /></p>
+<pre class="r"><code>trainCARTProbs = (predict(trialCART))[,2]
+max(trainCARTProbs)</code></pre>
+<pre><code>## [1] 0.8718861</code></pre>
+<pre class="r"><code>table(train$trial, trainCARTProbs&gt;=0.5)</code></pre>
+<pre><code>##    
+##     FALSE TRUE
+##   0   631   99
+##   1   131  441</code></pre>
+</div>
+<div id="problem-4" class="section level3">
+<h3>Problem 4</h3>
+<pre class="r"><code>testCARTProbs = (predict(trialCART, newdata=test))[,2]
+table(test$trial, testCARTProbs&gt;=0.5)</code></pre>
+<pre><code>##    
+##     FALSE TRUE
+##   0   261   52
+##   1    83  162</code></pre>
+<pre class="r"><code>testCARTPredictionObj = prediction(testCARTProbs, test$trial)
+as.numeric(performance(testCARTPredictionObj, &quot;auc&quot;)@y.values)</code></pre>
+<pre><code>## [1] 0.8371063</code></pre>
 </div>
 </div>
 <div id="separating-spam-emails-from-ham-emails" class="section level2">
@@ -304,7 +473,7 @@ which(colSums(subset(emailsSparse, spam == 0))&gt;=5000)</code></pre>
 <pre><code>## compani subject    will    spam 
 ##      48     283     323     331</code></pre>
 </div>
-<div id="problem-3" class="section level3">
+<div id="problem-3-1" class="section level3">
 <h3>Problem 3</h3>
 <pre class="r"><code>emailsSparse$spam = as.factor(emailsSparse$spam)
 set.seed(123)
