@@ -196,6 +196,8 @@ spamRFPredictionObj = prediction(spamRFProbs, train$spam)
 as.numeric(performance(spamRFPredictionObj, "auc")@y.values)
 ```
 
+### Problem 4
+
 ```{r}
 spamLogProbs = predict(spamLog, newdata=test, type="response")
 
@@ -211,4 +213,50 @@ as.numeric(performance(spamCARTPredictionObj,"auc")@y.values)
 table(test$spam, spamRFProbs>=0.5)
 spamRFPredictionObj = prediction(spamRFProbs, test$spam)
 as.numeric(performance(spamRFPredictionObj, "auc")@y.values)
+```
+
+### Problem 5 (theory)
+
+### Problem 6 (NOTE: my answer differs from official answer for problems 6.6, 6.7)
+```{r}
+wordCount = rowSums(as.matrix(dtm))
+length(wordCount)
+```
+
+```{r}
+hist(wordCount)
+hist(log(wordCount))
+```
+
+```{r}
+emailsSparse = emailsSparse[,-length(emailsSparse)]
+#sapply(emailsSparse, class)
+emailsSparse$logWordCount = log(rowSums(as.matrix(emailsSparse)))
+emailsSparse$spam = emails$spam
+boxplot(emailsSparse$logWordCount~emailsSparse$spam)
+head(names(emailsSparse))
+tail(names(emailsSparse))
+```
+
+```{r}
+train2 = subset(emailsSparse, split)
+test2 = subset(emailsSparse, !split)
+spam2CART = rpart(spam~., data=train2, method="class")
+set.seed(123)
+spam2RF = randomForest(spam~., data=train2, method="class")
+prp(spam2CART)
+```
+
+```{r}
+spam2CARTPreds = (predict(spam2CART, newdata=test2))[,2]
+table(test2$spam, spam2CARTPreds>=0.5)
+spam2CARTPredictionObj = prediction(spam2CARTPreds, test2$spam)
+as.numeric(performance(spam2CARTPredictionObj,"auc")@y.values)
+```
+
+```{r}
+spam2RFPreds = (predict(spam2RF, newdata=test2, ))
+table(test2$spam, spam2RFPreds>=0.5)
+spam2RFPredictionObj = prediction(spam2RFPreds, test2$spam)
+as.numeric(performance(spam2RFPredictionObj, "auc")@y.values)
 ```
