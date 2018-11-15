@@ -105,6 +105,8 @@ str(KMC)
 healthyClusters = KMC$cluster
 KMC$centers[2]
 
+
+
 # Plot the image with the clusters
 dim(healthyClusters) = c(nrow(healthyMatrix), ncol(healthyMatrix))
 

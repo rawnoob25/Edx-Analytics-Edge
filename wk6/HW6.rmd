@@ -1,0 +1,340 @@
+---
+title: "Analytics Edge HW6"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## TODO: Look at all text preceded by 'NOTE:'
+```{r}
+library(magrittr)
+library(dplyr)
+library(caTools) #for splitting into train/test sets (sample.split)
+# library(ROCR) #for computing AUCs
+# library(rpart) #contains rpart function used to build classification and regression trees
+# library(rpart.plot) #contains prp function used to plot classification and regression trees
+# library(randomForest) #for building random forest models
+library(caret) #for cross-validation
+# library(e1071) #for cross-validation
+# library(tm)
+Sys.setlocale("LC_ALL", "C")
+```
+
+## DailyKos
+
+### Problem 1
+```{r}
+kos = read.csv('dailykos.csv')
+dim(kos)
+distances = dist(kos, method='euclidean')
+kosClust = hclust(distances, method='ward.D')
+```
+
+```{r}
+plot(kosClust)
+```
+From plot generated above, it looks like either 2 or 3 clusters is appropriate due to sufficient vertical spacing btwn horizontal lines.
+
+But we'll nevertheless use 7 clusters (below)
+```{r}
+clustGrps = cutree(kosClust, k = 7) ##calling stats::cutree()
+str(clustGrps)
+spl = split(kos, clustGrps) #the list elements of spl are each of the 7 clusters
+#of the original dataframe, kos.
+lapply(spl,nrow)
+```
+
+Word in cluster one w/ highest avg frequency (avg'd across all docs)
+```{r}
+spl1 = spl[1]%>%as.data.frame
+str(spl1)
+names(spl1) = sub('X1.','',names(spl1),fixed=T)
+str(spl1)
+spl1%>%colMeans()%>%sort()%>%tail(1)
+```
+
+
+```{r}
+spl2 = spl[2]%>%as.data.frame
+names(spl2) = sub('X2.','',names(spl2),fixed=T)
+spl2%>%colMeans()%>%sort(decreasing = T)%>%head(6)
+```
+
+Checking now to see which cluster is most related to Iraq War and which cluster is most related to the Democratic Party nomination (contains stems of 'kerry', 'dean' and 'edwards' as top words)
+
+
+```{r}
+lapply(spl, function(x){
+  x=x%>%as.data.frame
+  names(x)=sub('^.+\\.','',names(x))
+  x%>%colMeans()%>%sort(decreasing=T)%>%head(6)
+})
+```
+
+NOTE: Above code slice just prints top words in each cluster. Try to instead print the clusters that contain respectively words related to the Iraq War and words related to Democratic Party nomation (just print the cluster names).
+
+### Problem 2
+```{r}
+set.seed(1000)
+kmkos = kmeans(kos, centers=7)
+table(kmkos$cluster)
+```
+
+```{r}
+spl = split(kos, kmkos$cluster)
+lapply(spl, function(x){
+  colMeans(x)%>%sort(decreasing = T)%>%head(6)
+})
+```
+
+Let's see which hierarchical cluster best corresponds to kmeans cluster 2. To do so we'll make a 2-way table of the clusters (w/ kmeans clusters as rows and hierarchical clusters as columns)
+
+```{r}
+table(kmkos$cluster, clustGrps)
+```
+
+## Market Segmentation with Passenger Air Travel data
+
+### Problem 1
+```{r}
+airlines = read.csv('AirlinesCluster.csv')
+str(airlines)
+sapply(airlines, mean)%>%sort()%>%head(2)
+sapply(airlines,mean)%>%sort()%>%tail(2)
+```
+
+Clearly the vars Balance and BonusMiles are on a vastly larger scale than the vars BonusTrans and FlightTrans. Without normalizing the data, Balance and BonusMiles would dominate the clustering.
+
+Normalization of a data frame can be accomplished by passing the data frame into the preProcess() function (invoking the preProcess function on a dataframe returns a preProcess object tied to that data frame) in the caret package and then passing that preProcess object into the predict function along with the data frame.
+
+```{r}
+preproc=preProcess(airlines) #preproc is a preProcess instance
+airlinesNorm = predict(preproc, airlines)
+sapply(airlinesNorm, max)%>%sort(decreasing=T)%>%head(1)
+sapply(airlinesNorm, min)%>%sort()%>%head(1)
+```
+
+### Problem 2
+
+```{r}
+distances = dist(airlinesNorm, method="euclidean")
+hclustTree = hclust(distances, method='ward.D')
+plot(hclustTree)
+```
+
+We're going with 5 clusters.
+
+```{r}
+airclusters = cutree(hclustTree, k=5)
+table(airclusters)[1]
+```
+
+Comparing avg values in each var over the 5 clusters...
+
+```{r}
+tapply(airlines$Balance, airclusters, mean)%>%sort(decreasing = T)
+tapply(airlines$QualMiles, airclusters, mean)%>%sort(decreasing = T)
+tapply(airlines$BonusMiles, airclusters, mean)%>%sort(decreasing = T)
+tapply(airlines$BonusTrans, airclusters, mean)%>%sort(decreasing = T)
+tapply(airlines$FlightMiles, airclusters, mean)%>%sort(decreasing = T)
+tapply(airlines$FlightTrans, airclusters, mean)%>%sort(decreasing = T)
+tapply(airlines$DaysSinceEnroll, airclusters, mean)%>%sort(decreasing = T)
+# sapply(airlines, tapply(airclusters, mean)) #gives error
+```
+
+Faster alternative to calling tapply on each column
+
+```{r}
+lapply(split(airlines,airclusters),colMeans)
+```
+
+### Problem 3
+```{r}
+set.seed(88)
+airlinesNormKM = kmeans(airlinesNorm, centers = 5, iter.max=1000)
+str(airlinesNormKM)
+airlinesNormKM$size
+###same as below, but without cluster headers
+airlinesNormKM$cluster%>%table
+```
+
+```{r}
+tapply(airlines$Balance, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+tapply(airlines$QualMiles, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+tapply(airlines$BonusMiles, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+tapply(airlines$BonusTrans, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+tapply(airlines$FlightMiles, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+tapply(airlines$FlightTrans, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+tapply(airlines$DaysSinceEnroll, airlinesNormKM$cluster, mean)%>%sort(decreasing = T)
+```
+
+Faster alternative to calling tapply on each column of airlines....
+```{r}
+lapply(split(airlines, airlinesNormKM$cluster),colMeans)
+```
+
+Let's now see if the clusters produced by hierarchical clustering line up with those produced by kmeans clustering...
+
+```{r}
+table(airclusters, airlinesNormKM$cluster)
+```
+
+Clusters 2 and 5 are pretty close, but the don't- even somewhat consistently- line up.
+
+## Cluster-then-Predict using NASDAQ stock data
+
+In the cluster-then-predict idiom, the following steps are followed:
+1. split the data into train and test sets using `sample.split()` from the caTools pkg 
+2. Normalize the train and tests sets using the mean and standard deviations from the train set. Remove the response variables before normalizing. Normalization involves the following steps:
+  a. Create limited train and test as copies of the original train and test sets, but with the response vars set to NULL
+  b. Creating a preProcess object by invoking the `preProcess()` function from the caret pkg on the limited train set
+  c. Call predict on the limited train and test sets, for each set passing in the preProcess object (computed in part b of this step) and the dataset. 
+3. Build the kmeans clustering model by invoking the `kmeans()` function on the normalized limited train set, also passing in your chosen number of centers
+4. Compute the clusters for both the train and test sets using the normalized data. This involves the following steps:
+  a. create a flexclust object by invoking `flexclust::as.kcca()`, passing in the kmeans object computed in step 3 and the normlized limited training set
+  b. (Step optional since training set clusters can be accessed directly from kmeans object) Call predict on the flexclust object returned in part a of this step
+  c. Call predict on the flexclust object returned in part a of this step and also pass in the normalized limited training set (as the 'newdata' parameter)
+5. Subset the original train and test sets into the clusters computed in step 4; if there were 3 clusters in the kmeans model, there will be 6 subsets computed in this step
+6. Build a predictive model for each cluster, and use the original training subset for that cluster to train the model
+7. Test the model for each cluster on that cluster's associated original test subset
+
+
+### Problem 1 
+```{r}
+stocks = read.csv('StocksCluster.csv')
+nrow(stocks)
+mean(stocks$PositiveDec)
+```
+
+```{r}
+fullCor = cor(stocks[-12])
+corNoDiag = fullCor
+diag(corNoDiag)=0 #set diagonal elements to 0
+corNoDiag
+max(corNoDiag)
+which.max(corNoDiag) #returns linear index (go first down column and to the next row) of max element in matrix corNoDiag
+```
+
+```{r}
+meanReturns = sapply(stocks[-12], mean)
+which.max(meanReturns)
+which.min(meanReturns)
+```
+
+## Problem 2 (Logistic Regression without clustering beforehand)
+
+```{r}
+set.seed(144)
+spl = sample.split(stocks$PositiveDec, SplitRatio = 0.7)
+stocksTrain = subset(stocks, spl)
+stocksTest = subset(stocks,!spl)
+```
+
+
+```{r}
+logRegrMod = glm(PositiveDec~., data=stocksTrain, family="binomial")
+logRegrPreds = predict(logRegrMod, type='response')
+str(logRegrPreds)
+table(stocksTrain$PositiveDec, logRegrPreds>=0.5)
+```
+
+```{r}
+logRegrPreds = predict(logRegrMod, newdata=stocksTest, type='response')
+table(stocksTest$PositiveDec, logRegrPreds>=0.5)
+```
+
+```{r}
+table(stocksTrain$PositiveDec)
+mean(stocksTest$PositiveDec)
+```
+
+### Problem 3 (cluster then predict)
+
+#### Remove Response vars from training and test sets 
+```{r}
+limitedTrain = stocksTrain
+str(limitedTrain)
+limitedTrain$PositiveDec = NULL
+str(limitedTrain)
+limitedTest = stocksTest
+limitedTest$PositiveDec = NULL
+```
+
+#### Normalize training and test sets 
+Note: when we have training and test sets, **we'll want to normalize by the mean and standard deviation of the training set** and use the preProcess object returned by calling preProcess on the training set to normalize **both the training and test sets**
+```{r}
+preProc = preProcess(limitedTrain)
+normTrain = predict(preProc, limitedTrain)
+normTest = predict(preProc, limitedTest)
+```
+
+```{r}
+set.seed(144)
+km = kmeans(normTrain, centers = 3)
+km$size
+```
+
+When using a kmeans clustering model to just cluster a training set, you can just access the 'cluster' vector from the kmeans object as `km$cluster`.
+
+If, instead, you're using a kmeans clustering model to cluster a test dataset (i.e. a dataset aside from that used to built the clustering model), you'll have to form a flexclust object using the `flexclust::as.kcca()` function, passing in the kmeans model as the first parameter and the training dataset as the second parameter. And then you'll have to then call the `predict()` function passing in the flexcust object as the first parameter and the test dataset as the second parameter. Note that the cluster vector for the training dataset can also be accessed via the `flexclust::as.kcca()` -> `predict()` idiom, with the only difference being that the predict function wouldn't take a second parameter in this case.
+
+NOTE: code chunks below here run fine (if previous code chunks in rmd have been run), however, code below here fails to knit (on my laptop).
+
+```{r}
+# kmkcca = flexclust::as.kcca(km, normTrain)
+# clusterTrain = predict(flexclust::as.kcca(km, normTrain))
+# clusterTest = predict(flexclust::as.kcca(km, normTrain), newdata=normTest)
+# table(clusterTrain)
+# km$size
+``` 
+Notice above how `table(clusterTrain)` and `km$size` give the same results.
+
+```{r}
+# table(clusterTest)
+```
+
+### Problem 4 
+```{r}
+# stocksTrain1 = subset(stocksTrain, clusterTrain==1)
+# stocksTrain2 = subset(stocksTrain, clusterTrain==2)
+# stocksTrain3 = subset(stocksTrain, clusterTrain==3)
+# stocksTest1 = subset(stocksTest, clusterTest==1)
+# stocksTest2 = subset(stocksTest, clusterTest==2)
+# stocksTest3 = subset(stocksTest, clusterTest==3)
+# stocksTrain1$PositiveDec%>%mean()
+# stocksTrain2$PositiveDec%>%mean()
+# stocksTrain3$PositiveDec%>%mean()
+```
+
+#### Building logistic regression models for each cluster and checking which variables (months) in the model differ in sign between the models
+
+```{r}
+# StocksModel1 = glm(PositiveDec~., data=stocksTrain1, family="binomial")
+# StocksModel2 = glm(PositiveDec~., data=stocksTrain2, family="binomial")
+# StocksModel3 = glm(PositiveDec~., data=stocksTrain3, family="binomial")
+# summary(StocksModel1)
+# summary(StocksModel2)
+# summary(StocksModel3)
+```
+
+#### Making test set predictions using the 3 models above
+```{r}
+# PredictTest1 = predict(StocksModel1, newdata=stocksTest1, type="response")
+# PredictTest2 = predict(StocksModel2, newdata=stocksTest2, type="response")
+# PredictTest3 = predict(StocksModel3, newdata=stocksTest3, type="response")
+# table(stocksTest1$PositiveDec, PredictTest1>=0.5)
+# table(stocksTest2$PositiveDec, PredictTest2>=0.5)
+# table(stocksTest3$PositiveDec, PredictTest3>=0.5)
+```
+
+If you calculate accuracies from each of the 3 tables above, you'll see that cluster-then-predict approach was more accurate than the predict (without clustering) approach for clusters 1 and 3 ,but less accurate for cluster 2.
+
+Below we'll compute the overall accuracy of the cluster-then-predict approach. 
+```{r}
+# AllPredictions = c(PredictTest1, PredictTest2, PredictTest3)
+# AllOutcomes = c(stocksTest1$PositiveDec, stocksTest2$PositiveDec, stocksTest3$PositiveDec)
+# table(AllOutcomes, AllPredictions>=0.5)
+```

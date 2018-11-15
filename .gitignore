@@ -3,3 +3,5 @@
 **.csv
 # Ignore all .Rhistory files in this folder and in subdirectories of this folder
 **.Rhistory
+# Ignore wk6/movieLens.txt
+movieLens.txt

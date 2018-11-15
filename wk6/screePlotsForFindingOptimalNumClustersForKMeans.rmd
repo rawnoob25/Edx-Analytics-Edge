@@ -1,0 +1,47 @@
+---
+title: "Using Scree Plots to find the Optimal value of 'K' in K-Means clustering, etc."
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## TODO: Look at all text preceded by 'NOTE:' 
+
+This document uses T2-weighted brain MRI data for healthy individual from the dataset healthy.csv.
+```{r}
+healthy = read.csv("healthy.csv", header=FALSE)
+healthyMatrix = as.matrix(healthy)
+healthyVector = as.vector(healthyMatrix)
+SumWithinss = sapply(2:10, function(x) sum(kmeans(healthyVector, centers=x, iter.max=1000)$withinss))
+SumWithinss
+plot(2:10, SumWithinss, type='b')
+```
+
+A reliable measure of the strength of particular value of 'K' in K-means clustering is the sum (over all clusters) of the within-cluster sum of squares (each within-cluster sum of squares is the sum (over all elements in the cluster) of squared deviations from the cluster's centroid) for that value of K.
+
+A scree plot displays the sum of within-cluster sum of squares against the value of K. The scree plot reveals that the sum of within-cluster sum of squares drops as the value of K increases. This should make sense because as the number of clusters increases, the size of each cluster is smaller and observations will be closer to their respective centroids. A good choice of K is the smallest value of K beyond which any increase in K doesn't lead to much of an appreciable decrease in the sum of within-cluster sum of squares. Small values of K are good because fewer clusters allow for a simpler clustering model and fewer clusters to pigeonhole into when doing subsequent analysis.
+
+### Computing within-cluster sum of squares 'manually'
+
+Below is a function (using nested loops) that computes within-cluster sum of squares manually. Looking at the code you'll see some useful teaching points.
+```{r}
+KMC = kmeans(healthyVector, centers = 5)
+
+verifySS<-function() {
+  spl = split(healthyVector, KMC$cluster)
+  cmp_withinClustSS = numeric(5)
+  for(p in seq(spl)){
+    tot = 0
+    listItem = unlist(spl[p])
+    for(val in listItem){
+      tot = tot + ((val - KMC$centers[p])^2)
+    }
+    cmp_withinClustSS[p] = tot
+  }
+  return (cmp_withinClustSS)
+}
+verifySS()
+KMC$withinss
+```
