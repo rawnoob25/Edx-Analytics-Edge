@@ -1,0 +1,16 @@
+---
+title: "Items to revisit related to Analytics Edge Course"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Related to Week 6 (clustering)
+1. Using data in wk6/movieLens.txt and R commands in Unit6_Netflix.R, get excel output
+as shown in Video 7 ("Hierarchical Clustering in R") of lecture sequence "Recommendations Worth a Million:An Introduction to Clustering"
+
+## Related to Week 5 (text analytics) 
+1. Read vignettes related to R packages 'RTextTools', 'tau',
+'RWeka', and 'textcat'
+
