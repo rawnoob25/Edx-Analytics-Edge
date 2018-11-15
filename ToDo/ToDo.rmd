@@ -11,6 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 as shown in Video 7 ("Hierarchical Clustering in R") of lecture sequence "Recommendations Worth a Million:An Introduction to Clustering"
 
 ## Related to Week 5 (text analytics) 
-1. Read vignettes related to R packages 'RTextTools', 'tau',
+1. Read vignettes for to R packages related to ngrams. The packages are: 'RTextTools', 'tau',
 'RWeka', and 'textcat'
 
