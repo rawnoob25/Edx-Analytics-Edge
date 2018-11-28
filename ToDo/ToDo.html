@@ -122,11 +122,40 @@ $(document).ready(function () {
 </div>
 
 
-<div id="related-to-week-6" class="section level2">
-<h2>Related to Week 6</h2>
+<div id="related-to-week-6-clustering" class="section level2">
+<h2>Related to Week 6 (clustering)</h2>
 <ol style="list-style-type: decimal">
-<li><p>Using data in wk6/movieLens.txt and R commands in Unit6_Netflix.R, get excel output as shown in Video 7 (“Hierarchical Clustering in R”) of lecture sequence “Recommendations Worth a Million:An Introduction to Clustering”</p></li>
-<li><p>Related to video 5 of the Recitation. Fix function verifySS() in wk6/test.R. Need to run commands in Unit6_Netflix.R up to computation of KMC before running verifySS().</p></li>
+<li>Using data in wk6/movieLens.txt and R commands in Unit6_Netflix.R, get excel output as shown in Video 7 (“Hierarchical Clustering in R”) of lecture sequence “Recommendations Worth a Million:An Introduction to Clustering”</li>
+</ol>
+</div>
+<div id="related-to-week-5-text-analytics" class="section level2">
+<h2>Related to Week 5 (text analytics)</h2>
+<ol style="list-style-type: decimal">
+<li>Read vignettes for to R packages related to ngrams. The packages are: ‘RTextTools’, ‘tau’, ‘RWeka’, and ‘textcat’</li>
+</ol>
+</div>
+<div id="related-to-wk7" class="section level2">
+<h2>Related to Wk7</h2>
+<ul>
+<li><p>Familiarize yourself with using maps and ggmap packages. See video 5 from lecture segment 2 of Unit 7 and wk7/Unit7_Crime.R</p></li>
+<li><p>Follow steps below to pull up map of chicago: in wk7/Unit7_Crime.R</p></li>
+</ul>
+<p><strong>To run ggmap and get_map in ggmap pkg (From Wk7:Sequence2:Video5)</strong> 1. Get Google API from Google APIs. 2. Enable Maps Static API and geocoding API. 3. Go to the geocoding API that you have enabled. Click on credentials and ask for a key. Copy this key. 4. Run below code:</p>
+<pre><code>if(!requireNamespace(&quot;devtools&quot;)) install.packages(&quot;devtools&quot;) devtools::install_github(&quot;dkahle/ggmap&quot;, ref = &quot;tidyup&quot;, force = TRUE)
+
+library(ggmap) register_google(key = &quot;yourAPI&quot;)</code></pre>
+<p>where yourAPI is the key you copied in step 3. If you’re unable to run ggmap, you’ll still be able to run the quick question after the video.</p>
+</div>
+<div id="miscellaneous" class="section level2">
+<h2>Miscellaneous</h2>
+<ol style="list-style-type: decimal">
+<li>Practice melting and reshaping data (see households.csv in wk7)</li>
+</ol>
+</div>
+<div id="related-to-wk3" class="section level2">
+<h2>Related to Wk3</h2>
+<ol style="list-style-type: decimal">
+<li>Review Imputation (wk3 recitation)</li>
 </ol>
 </div>
 
