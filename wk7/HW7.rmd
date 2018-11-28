@@ -1,0 +1,352 @@
+---
+title: "Analytics Edge HW7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+NOTE: write up comments for all the 'library()' calls
+
+```{r}
+library(magrittr)
+# library(maps) ##Note: may need to uncomment `library(maps)` for ggplot2::map_data() to work
+Sys.setlocale("LC_ALL", "C")
+library(igraph) #for graph.data.frame() and degree() 
+library(tm) #for VCorpus() and VectorSource(), tm_map(), DocumentTermMatrix()
+library(wordcloud) #for wordcloud()
+library(RColorBrewer) #for display.brewer.all(), brewer.pal()
+library(ggplot2) #for map_data(), all plotting functions (incl. ggplot(), geom_polygon(), geom_histogram(), scale_fill_gradient(), scale_fill_manual(), facet_grid())
+```
+
+## Election Forecasting Revisited 
+
+### Problem 1 
+```{r}
+statesMap = map_data('state')
+str(statesMap)
+table(statesMap$group)
+```
+
+```{r}
+ggplot(statesMap, aes(x=long, y=lat, group=group)) + geom_polygon(fill="white", color="black")
+``` 
+
+### Problem 2
+
+```{r}
+polling = read.csv('PollingImputed.csv')
+str(polling)
+train = subset(polling, Year!=2012)
+test = subset(polling, Year==2012)
+mod2 = glm(Republican~SurveyUSA+DiffCount, data=train, family="binomial")
+TestPrediction = predict(mod2, newdata=test, type="response")
+TestPredictionBinary = as.numeric(TestPrediction > 0.5)
+predictionDataFrame = data.frame(TestPrediction, TestPredictionBinary, test$State)
+str(predictionDataFrame)
+table(TestPredictionBinary)
+mean(TestPrediction)
+```
+
+```{r}
+predictionDataFrame$region = tolower(predictionDataFrame$test.State)
+predictionMap = merge(statesMap, predictionDataFrame, by = "region")
+str(predictionMap)
+predictionMap = predictionMap[order(predictionMap$order),] #reorder observations necessary
+#for map to render properly
+str(predictionMap)
+```
+
+```{r}
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPredictionBinary)) + geom_polygon(color = "black")
+```
+
+```{r}
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPredictionBinary))+ geom_polygon(color = "black") + scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), labels = c("Democrat", "Republican"), name = "Prediction 2012")
+```
+
+### Problem 3
+```{r}
+mean(subset(predictionMap,region=='florida')$TestPrediction)
+str(subset(predictionMap,region=='florida'))
+table(subset(predictionMap,region=='florida')$TestPrediction)
+```
+
+### Problem 4
+
+Amend ggplot cmd from problem 2 to use TestPrediction instead of TestPredictionBinary for the fill.
+
+```{r}
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPrediction))+ geom_polygon(color = "black") + scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), labels = c("Democrat", "Republican"), name = "Prediction 2012")
+```
+
+To make plot 1 
+```{r}
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPrediction))+ geom_polygon(color = "black", linetype=3) + scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), labels = c("Democrat", "Republican"), name = "Prediction 2012")
+```
+
+To make plot 2 
+```{r}
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPrediction))+ geom_polygon(color = "black", size=3) + scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), labels = c("Democrat", "Republican"), name = "Prediction 2012")
+``` 
+
+to make plot 3 
+```{r}
+ggplot(predictionMap, aes(x = long, y = lat, group = group, fill = TestPrediction))+ geom_polygon(color = "black", alpha=0.3) + scale_fill_gradient(low = "blue", high = "red", guide = "legend", breaks= c(0,1), labels = c("Democrat", "Republican"), name = "Prediction 2012")
+```
+
+## Visualizing Network Data
+
+### Problem 1 
+
+```{r}
+users=read.csv('users.csv')
+edges=read.csv('edges.csv')
+nrow(users)
+head(users)
+head(edges)
+```
+
+```{r}
+users$school = as.character(users$school)
+users$school = ifelse(!(users$school %in% c('A','AB')),NA,users$school)
+head(users)
+nonMissingSch = subset(users, !is.na(users$school))
+str(nonMissingSch)
+table(nonMissingSch$locale)
+```
+
+```{r}
+table(nonMissingSch$gender, nonMissingSch$school)
+```
+
+### Problem 2 
+
+```{r}
+g = graph.data.frame(d=edges, directed=FALSE, vertices=users) #note: g is instance of class igraph
+``` 
+
+```{r}
+plot(g, vertex.size=5, vertex.label=NA)
+```
+
+```{r}
+degs=degree(g)
+sum(degs>=10)
+```
+
+```{r}
+V(g)$size = degree(g)/2+2 #Note: calling function V() on an igraph returns a vertex sequence (class is igraph.vs) of all vertices of a graph. We've thus set the sizes of vertices to be in proportion to their degrees.
+plot(g, vertex.label=NA)
+V(g)$size%>%max
+V(g)$size%>%min
+``` 
+
+### Problem 3 
+
+Note that gender, school and locale of users are respectively stored in `V(g)$gender`, 
+`V(g)$school` and `V(g)$locale`.
+
+```{r}
+V(g)$color = "black"
+V(g)$color[V(g)$gender == "A"] = "red"
+V(g)$color[V(g)$gender == "B"] = "gray"
+plot(g, vertex.label=NA)
+```
+
+```{r}
+V(g)$color = "black"
+V(g)$color[V(g)$school == "A"] = "gray"
+V(g)$color[V(g)$school == "AB"] = "red"
+plot(g, vertex.label=NA)
+```
+
+```{r}
+V(g)$color = "black"
+V(g)$color[V(g)$locale == "A"] = "gray"
+V(g)$color[V(g)$locale == "B"] = "red"
+plot(g, vertex.label=NA)
+``` 
+
+### Problem 4 
+No relevant code
+
+## Visualizing Text Data Using Word Clouds 
+
+### Problem 1 
+
+```{r}
+tweets=read.csv('tweets.csv', stringsAsFactors = F)
+corpus = VCorpus(VectorSource(tweets$Tweet))
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, stopwords('english'))
+corpus
+corpus[[1]]$content
+corpus[[2]]$content
+dtm=DocumentTermMatrix(corpus)
+dtm
+```
+
+```{r}
+allTweets = as.data.frame(as.matrix(dtm))
+dim(allTweets)
+``` 
+
+### Problem 2 
+```{r} 
+words = make.names(colnames(allTweets))
+freq = colSums(allTweets)
+wordcloud(words=words,freq=freq)
+```
+
+Some words in the vector of words passed to the wordcloud function were not displayed due to their being unable to fit in the wordcloud. The default scale parameter is `c(4,0.5)`. Let's try again with the scale parameter set to `c(4*0.75, 0.5*0.75)` and see if the words that weren't displayed are now displayedd.
+
+```{r}
+wordcloud(words=words,freq=freq, scale=c(4*0.75,0.5*0.75))
+```
+
+Reducing the scale does indeed reduce the number of words that fail to be displayed in the wordcloud.
+
+```{r}
+mostFreq=colSums(allTweets)%>%sort()%>%tail(1)
+names(mostFreq)[1]
+names(mostFreq)[1]%>%str()
+corpus = VCorpus(VectorSource(tweets$Tweet))
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, c(names(mostFreq)[1],stopwords('english')))
+allButMostFreq = as.data.frame(as.matrix(DocumentTermMatrix(corpus)))
+dim(allButMostFreq) #compare to original w/ 3780 columns
+words = make.names(colnames(allButMostFreq))
+freq = colSums(allButMostFreq)
+wordcloud(words=words, freq=freq, scale=c(4*0.75,0.5*0.75))
+```
+
+### Problem 3 
+
+Negative Tweets Only 
+```{r}
+negativeTweets = subset(allTweets, tweets$Avg <= -1)
+
+wordcloud(colnames(negativeTweets), colSums(negativeTweets))
+``` 
+
+Original Word cloud 
+```{r}
+wordcloud(colnames(allTweets), colSums(allTweets))
+``` 
+
+
+100 words 
+```{r} 
+wordcloud(colnames(allTweets), colSums(allTweets), max.words=100)
+``` 
+
+100 words and nonrandom order 
+```{r}
+wordcloud(colnames(allTweets), colSums(allTweets), max.words=100, random.order = F)
+```
+
+Note in above plot that setting `random.order` to `False` plots most frequent words toward the center of the word cloud. 
+
+Let's now try changing the parameter `rot.per`. This is the proportion of words that'll appear rotated 90 degrees in the word cloud. 
+
+```{r}
+wordcloud(colnames(allTweets), colSums(allTweets), max.words=100, random.order = F, rot.per = 0.5) #default value of rot.per is 0.10 
+``` 
+
+### Problem 4 
+
+Display all color palettes available in pkg RColorBrewer
+```{r}
+display.brewer.all()
+```
+
+```{r}
+colors=brewer.pal(9, "Blues")
+colors
+wordcloud(colnames(allTweets), colSums(allTweets), max.words=100, random.order=F, colors=colors)
+```
+
+You can see in the above wordcloud that words that aren't present in the tweets extremely frequently appear an extremely light shade of blue and thus are either barely visible or invisible.
+
+The lightest shades are listed first in the vector, colors. We'll remove the lightest 4 colors in the palette and then remake the wordcloud using the abridged palette.
+
+```{r}
+darkColors = colors[5:9]
+wordcloud(colnames(allTweets), colSums(allTweets), max.words=100, random.order=F, colors=darkColors)
+```
+
+## Visualizing attributes of parole violators  
+
+```{r}
+parole=read.csv('parole.csv')
+parole%>%head
+``` 
+
+### Problem 1 
+```{r}
+parole$male = as.factor(parole$male)
+parole$state = as.factor(parole$state)
+parole$crime = as.factor(parole$crime)
+head(parole)
+table(parole$male, parole$violator)
+```
+
+```{r}
+table(parole$crime, parole$state)
+``` 
+
+### Problem 2 
+```{r}
+ggplot(data = parole, aes(x = age)) + geom_histogram(binwidth = 5, boundary = 0, color = 'black', fill = 'cornflowerblue')
+ggplot(data = parole, aes(x = age)) + geom_histogram(binwidth = 5, boundary = 0, color = 'blue', fill = 'cornflowerblue')
+```
+
+### Problem 3 
+```{r}
+ggplot(data = parole, aes(x = age)) + geom_histogram(binwidth = 5, boundary = 0, color='black',fill='cornflowerblue') + facet_grid(male ~ .)
+ggplot(data = parole, aes(x = age)) + geom_histogram(binwidth = 5, boundary = 0, color='black',fill='cornflowerblue') + facet_grid(. ~ male)
+```
+
+```{r}
+ggplot(data = parole, aes(x = age, fill = male)) + geom_histogram(binwidth = 5, boundary = 0)
+```
+
+In above plot, default colors are used since no colors are specified.
+
+```{r}
+colorPalette = c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+ggplot(data = parole, aes(x = age, fill = male)) + geom_histogram(binwidth = 5, boundary = 0) + scale_fill_manual(values=colorPalette)
+```
+
+Let's remake the above plot, but make the bars overlaid rather than stacked. 
+```{r}
+ggplot(data = parole, aes(x = age, fill = male)) + geom_histogram(binwidth = 5, boundary = 0, position='identity', alpha=0.5) + scale_fill_manual(values=colorPalette)
+``` 
+
+### Problem 4 
+```{r}
+ggplot(data = parole, aes(x = time.served)) + geom_histogram(binwidth=1, boundary = 0, color = 'blue', fill = 'cornflowerblue')
+ggplot(data = parole, aes(x = time.served)) + geom_histogram(binwidth=0.1, boundary = 0, color = 'blue', fill = 'cornflowerblue')
+```
+
+NOTE: need to find out how to put tick marks every 0.1 (months) on below histogram's x axis
+
+```{r}
+ggplot(data = parole, aes(x = time.served)) + geom_histogram(binwidth=0.1, boundary = 0, color = 'blue', fill = 'cornflowerblue')
+```
+
+```{r}
+ggplot(data = parole, aes(x = time.served)) + geom_histogram(binwidth = 1, boundary = 0, color='black',fill='cornflowerblue') + facet_grid(crime ~ .)
+```
+
+```{r}
+ggplot(data = parole, aes(x = time.served, fill=crime)) + geom_histogram(binwidth = 1, boundary = 0, position='identity', alpha=0.5) + scale_fill_manual(values=colorPalette)
+```
+
+Overlaying is worse than faceting in this case.
