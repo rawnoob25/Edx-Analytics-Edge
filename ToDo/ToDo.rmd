@@ -42,7 +42,14 @@ where yourAPI is the key you copied in step 3.  If you're unable to run ggmap, y
 
 
 ## Miscellaneous 
-1. Practice melting and reshaping data (see households.csv in wk7)
+1. Practice melting and reshaping data (see households.csv in wk7) 
+2. Convert this .rmd file to a regular markdown file and have all files referenced here be accessible thru the repository as relative links are in Adam Pritchard's Markdown tutorial on github.
+
 
 ## Related to Wk3
-1. Review Imputation (wk3 recitation)
+1. Review Imputation (wk3 recitation) 
+
+## Related to Wk8 
+* Figure out why in OpenOfficeCalc(LibreOfficeCalc)Tutorial.ods B9-B12 won't get formatted as a currency, but C9-C12 and D9-D12 will. Tutorial materials are at this link: https://www.lifewire.com/open-office-calc-basic-spreadsheet-tutorial-3123949 
+
+* Also related to tutorial in above bullet, figure out why vertical borders btwn cells A8 and B8, B8 and C8, and C8 and D8 don't appear on top of the bounds of the cell as they do in step 1 of 9 of the tutorial.
